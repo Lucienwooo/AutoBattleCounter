@@ -5,10 +5,10 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGIN = "https://lucienwooo.github.io"
-GITHUB_OWNER = "Lucienwooo"
-GITHUB_REPO = "AutoBattleCounter"
-GITHUB_BRANCH = "main"
-DATA_PATH = "data/auto-battle.json"
+
+[[kv_namespaces]]
+binding = "AUTO_BATTLE_DATA"
+id = "7353daa2c5a34c34816f5fad1db0348d"
 
 [[ratelimits]]
 name = "LOGIN_RATE_LIMITER"

@@ -457,7 +457,7 @@
         return result;
       }
 
-      async function saveGitHubState() {
+      async function saveCloudState() {
         if (!githubSyncEnabled) {
           setSyncStatus("僅本機儲存", "");
           return true;
@@ -477,7 +477,7 @@
           return true;
         } catch (error) {
           setSyncStatus("同步失敗", "error");
-          showToast(error.message || "GitHub 同步失敗，資料已保存在本機。");
+          showToast(error.message || "雲端同步失敗，資料已保存在本機。");
           return false;
         }
       }
@@ -512,11 +512,11 @@
       async function flushCloudSave() {
         window.clearTimeout(cloudSaveTimer);
         cloudSaveTimer = null;
-        if (!pendingCloudSave) return saveGitHubState();
+        if (!pendingCloudSave) return saveCloudState();
         const resolveSave = resolvePendingCloudSave;
         pendingCloudSave = null;
         resolvePendingCloudSave = null;
-        const saved = await saveGitHubState();
+        const saved = await saveCloudState();
         resolveSave(saved);
         return saved;
       }

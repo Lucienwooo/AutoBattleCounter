@@ -3,12 +3,9 @@ setlocal
 cd /d "%~dp0"
 
 echo.
-echo This will save the GitHub token and app password as Cloudflare secrets.
+echo This will save the app password as a Cloudflare secret.
 echo Secret values are not written to this file.
 echo.
-
-call npx --yes wrangler secret put GITHUB_TOKEN
-if errorlevel 1 goto failed
 
 call npx --yes wrangler secret put ACCESS_PASSWORD
 if errorlevel 1 goto failed
