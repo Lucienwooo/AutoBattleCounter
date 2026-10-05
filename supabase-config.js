@@ -5,7 +5,7 @@ window.AUTO_BATTLE_SUPABASE = {
 };
 
 window.AUTO_BATTLE_GITHUB_SYNC = {
-  enabled: false,
+  enabled: true,
   owner: "Lucienwooo",
   repo: "AutoBattleCounter",
   branch: "main",
