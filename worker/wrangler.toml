@@ -1,0 +1,19 @@
+name = "auto-battle-counter-sync"
+main = "index.js"
+compatibility_date = "2026-10-05"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "https://lucienwooo.github.io"
+GITHUB_OWNER = "Lucienwooo"
+GITHUB_REPO = "AutoBattleCounter"
+GITHUB_BRANCH = "main"
+DATA_PATH = "data/auto-battle.json"
+
+[[ratelimits]]
+name = "LOGIN_RATE_LIMITER"
+namespace_id = "472951"
+
+	[ratelimits.simple]
+	limit = 20
+	period = 60

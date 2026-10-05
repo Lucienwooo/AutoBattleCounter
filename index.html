@@ -211,6 +211,8 @@
       <form class="auth-form" id="authForm" autocomplete="off" novalidate>
         <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Password" value="" required></label>
         <button class="button button-primary" id="loginButton" type="submit">進入</button>
+        <button class="button button-quiet" id="importBackupButton" type="button">匯入舊裝置備份</button>
+        <input id="importBackupInput" type="file" accept="application/json,.json" hidden>
         <p class="auth-message" id="authMessage" role="status">此網址僅供本人使用，請輸入密碼。</p>
       </form>
     </div>
@@ -224,6 +226,7 @@
       </div>
       <div class="top-actions">
         <button class="button button-quiet" id="saveButton" type="button">儲存</button>
+        <button class="button button-quiet" id="exportDataButton" type="button">下載備份</button>
         <span class="sync-status" id="syncStatus" data-state="">本機儲存</span>
         <div class="today-chip" id="todayLabel"></div>
       </div>
@@ -389,6 +392,15 @@
         return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.floor(number))) : fallback;
       }
 
+      function hasSavedLocalState() {
+        try {
+          return Boolean(localStorage.getItem(STORAGE_KEY));
+        } catch {
+          return false;
+        }
+      }
+
+      const hasLocalSavedState = hasSavedLocalState();
       const state = loadState();
       const el = (id) => document.getElementById(id);
       const roster = el("roster");
@@ -397,7 +409,7 @@
       const authForm = el("authForm");
       const supabaseSettings = window.AUTO_BATTLE_SUPABASE || {};
       const githubSyncSettings = window.AUTO_BATTLE_GITHUB_SYNC || {};
-      const githubSyncEnabled = Boolean(githubSyncSettings.enabled && githubSyncSettings.owner && githubSyncSettings.repo && githubSyncSettings.token && githubSyncSettings.path);
+      const githubSyncEnabled = Boolean(githubSyncSettings.enabled && githubSyncSettings.endpoint);
       const supabaseClient = window.supabase?.createClient && supabaseSettings.url && supabaseSettings.anonKey
         ? window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey)
         : null;
@@ -409,6 +421,10 @@
       let loadingUserId = null;
       let cloudSaveTimer = null;
       let cloudSaveQueue = Promise.resolve();
+      let accessPassword = null;
+      let importedBackup = null;
+      let pendingCloudSave = null;
+      let resolvePendingCloudSave = null;
       let appTimer = null;
       let editingHotTime = false;
       let draftHotTimeDates = [];
@@ -418,53 +434,45 @@
         return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
       }
 
-      function base64EncodeUnicode(value) {
-        const encoded = new TextEncoder().encode(value);
-        let binary = "";
-        encoded.forEach((byte) => {
-          binary += String.fromCharCode(byte);
-        });
-        return btoa(binary);
+      async function requestCloud(method, password, payload) {
+        let response;
+        try {
+          response = await fetch(`${githubSyncSettings.endpoint.replace(/\/$/, "")}/api/state`, {
+            method,
+            headers: {
+              Authorization: `Bearer ${password}`,
+              ...(payload ? { "Content-Type": "application/json" } : {})
+            },
+            ...(payload ? { body: JSON.stringify(payload) } : {})
+          });
+        } catch {
+          throw new Error("無法連線到雲端同步服務，請檢查網路或稍後再試。");
+        }
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const error = new Error(result.error || `雲端同步失敗 (${response.status})。`);
+          error.status = response.status;
+          throw error;
+        }
+        return result;
       }
 
       async function saveGitHubState() {
         if (!githubSyncEnabled) {
-          setSyncStatus("本機儲存", "saved");
+          setSyncStatus("僅本機儲存", "");
           return true;
+        }
+        if (!accessPassword) {
+          setSyncStatus("尚未同步", "error");
+          return false;
         }
         setSyncStatus("同步中…", "");
         const snapshot = JSON.parse(JSON.stringify(state));
-        const url = `https://api.github.com/repos/${githubSyncSettings.owner}/${githubSyncSettings.repo}/contents/${githubSyncSettings.path}`;
-        const headers = {
-          Authorization: `token ${githubSyncSettings.token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28"
-        };
+        const save = () => requestCloud("PUT", accessPassword, snapshot);
+        const operation = cloudSaveQueue.then(save, save);
+        cloudSaveQueue = operation.catch(() => {});
         try {
-          const existing = await fetch(url, { headers });
-          let sha = undefined;
-          if (existing.ok) {
-            const existingData = await existing.json();
-            sha = existingData.sha;
-          }
-          const payload = {
-            message: `Update AutoBattleCounter data ${new Date().toISOString()}`,
-            branch: githubSyncSettings.branch || "main",
-            content: base64EncodeUnicode(JSON.stringify(snapshot, null, 2)),
-            ...(sha ? { sha } : {})
-          };
-          const response = await fetch(url, {
-            method: "PUT",
-            headers: {
-              ...headers,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-          });
-          if (!response.ok) {
-            const responseText = await response.text();
-            throw new Error(responseText || "GitHub 同步失敗。");
-          }
+          await operation;
           setSyncStatus("已同步", "saved");
           return true;
         } catch (error) {
@@ -484,12 +492,33 @@
         }
 
         if (githubSyncEnabled) {
-          const saved = await saveGitHubState();
-          return saved;
+          return scheduleCloudSave();
         }
 
-        setSyncStatus("本機儲存", "saved");
+        setSyncStatus("僅本機儲存", "");
         return true;
+      }
+
+      function scheduleCloudSave() {
+        if (!pendingCloudSave) {
+          pendingCloudSave = new Promise((resolve) => { resolvePendingCloudSave = resolve; });
+        }
+        window.clearTimeout(cloudSaveTimer);
+        setSyncStatus("等待同步…", "");
+        cloudSaveTimer = window.setTimeout(flushCloudSave, 500);
+        return pendingCloudSave;
+      }
+
+      async function flushCloudSave() {
+        window.clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = null;
+        if (!pendingCloudSave) return saveGitHubState();
+        const resolveSave = resolvePendingCloudSave;
+        pendingCloudSave = null;
+        resolvePendingCloudSave = null;
+        const saved = await saveGitHubState();
+        resolveSave(saved);
+        return saved;
       }
 
       function setSyncStatus(text, stateName) {
@@ -586,35 +615,17 @@
         el("authPassword").value = "";
         el("authScreen").hidden = false;
         el("appRoot").hidden = true;
-        setSyncStatus("本機儲存", "saved");
-        el("authMessage").textContent = "此網址僅供本人使用，請輸入密碼。";
+        setSyncStatus(githubSyncEnabled ? "等待雲端驗證" : "僅本機儲存", "");
+        el("authMessage").textContent = githubSyncEnabled
+          ? "請輸入密碼以驗證並載入雲端資料。"
+          : "雲端同步尚未設定；本機模式不會以密碼保護資料。";
+      }
 
-        if (githubSyncEnabled) {
-          try {
-            const response = await fetch(`https://api.github.com/repos/${githubSyncSettings.owner}/${githubSyncSettings.repo}/contents/${githubSyncSettings.path}`, {
-              headers: {
-                Authorization: `token ${githubSyncSettings.token}`,
-                Accept: "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28"
-              }
-            });
-            if (response.ok) {
-              const payload = await response.json();
-              const content = payload.content ? atob(payload.content.replace(/\n/g, "")) : "";
-              if (content) {
-                try {
-                  const remoteState = JSON.parse(content);
-                  Object.keys(state).forEach((key) => delete state[key]);
-                  Object.assign(state, remoteState);
-                } catch {
-                  // ignore invalid remote payload and keep local state
-                }
-              }
-            }
-          } catch {
-            // keep current local state when GitHub sync is unavailable
-          }
-        }
+      function unlockApp(statusText, statusState) {
+        el("authScreen").hidden = true;
+        el("appRoot").hidden = false;
+        setSyncStatus(statusText, statusState);
+        startApp();
       }
 
       function applyDailyRecharge() {
@@ -1151,21 +1162,86 @@
       authForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const password = el("authPassword").value;
-        if (password !== "9527") {
-          el("authMessage").textContent = "密碼錯誤，請重新輸入。";
-          el("authPassword").value = "";
+        const loginButton = el("loginButton");
+
+        if (githubSyncEnabled) {
+          loginButton.disabled = true;
+          el("authMessage").textContent = "正在驗證並載入雲端資料…";
+          try {
+            let remoteState;
+            try {
+              remoteState = await requestCloud("GET", password);
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              if (!hasLocalSavedState && !importedBackup) {
+                throw new Error("雲端尚無資料。請在原本有資料的瀏覽器下載備份，再於此處匯入。");
+              }
+              if (!window.confirm("雲端目前沒有資料。要將這個瀏覽器現有資料設為雲端主資料嗎？")) {
+                el("authMessage").textContent = "尚未初始化雲端資料；原本資料仍保留在此瀏覽器。";
+                return;
+              }
+              const initialState = hasLocalSavedState ? JSON.parse(JSON.stringify(state)) : importedBackup;
+              await requestCloud("PUT", password, { initialize: true, state: initialState });
+              remoteState = initialState;
+            }
+
+            if (!Array.isArray(remoteState.characters)) throw new Error("雲端資料格式不正確，已停止載入以避免覆蓋資料。");
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteState));
+            const normalizedState = loadState();
+            Object.keys(state).forEach((key) => delete state[key]);
+            Object.assign(state, normalizedState);
+            accessPassword = password;
+            unlockApp("已同步", "saved");
+          } catch (error) {
+            el("authMessage").textContent = error.status === 401 ? "密碼錯誤，請重新輸入。" : error.message;
+            el("authPassword").value = "";
+            setSyncStatus("雲端讀取失敗", "error");
+          } finally {
+            loginButton.disabled = false;
+          }
           return;
         }
-        el("authScreen").hidden = true;
-        el("appRoot").hidden = false;
-        setSyncStatus("本機儲存", "saved");
-        startApp();
+
+        if (!password) {
+          el("authMessage").textContent = "請輸入密碼。";
+          return;
+        }
+        unlockApp("僅本機儲存", "");
       });
 
       el("saveButton").addEventListener("click", async () => {
-        const saved = await saveState();
+        const saved = githubSyncEnabled ? await flushCloudSave() : await saveState();
         if (saved) {
           showToast("資料已儲存。");
+        }
+      });
+      el("exportDataButton").addEventListener("click", () => {
+        const content = localStorage.getItem(STORAGE_KEY);
+        if (!content) {
+          showToast("此瀏覽器尚無已儲存資料可匯出。");
+          return;
+        }
+        const file = new Blob([content], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(file);
+        link.download = `auto-battle-backup-${todayKey()}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+      el("importBackupButton").addEventListener("click", () => el("importBackupInput").click());
+      el("importBackupInput").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const backup = JSON.parse(await file.text());
+          if (!backup || !Array.isArray(backup.characters)) throw new Error("備份檔格式不正確。");
+          importedBackup = backup;
+          el("authMessage").textContent = "備份已載入。輸入密碼後，若雲端尚無資料即可初始化同步。";
+        } catch (error) {
+          importedBackup = null;
+          el("authMessage").textContent = error.message || "無法讀取備份檔。";
+        } finally {
+          event.target.value = "";
         }
       });
       el("chooseAvatar").addEventListener("click", () => el("avatarFile").click());
