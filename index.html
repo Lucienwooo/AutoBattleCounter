@@ -204,15 +204,14 @@
   </style>
 </head>
 <body>
-  <section class="auth-screen" id="authScreen" hidden>
+  <section class="auth-screen" id="authScreen">
     <div class="auth-panel">
       <p class="eyebrow">Auto Battle / Private Data</p>
-      <h1>登入狩獵時間</h1>
+      <h1>進入狩獵時間</h1>
       <form class="auth-form" id="authForm" autocomplete="off" novalidate>
-        <label class="auth-field">帳號<input id="authEmail" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="pupu" value="" required></label>
         <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="9527" value="" required></label>
-        <button class="button button-primary" id="loginButton" type="submit">登入</button>
-        <p class="auth-message" id="authMessage" role="status">固定帳號：pupu</p>
+        <button class="button button-primary" id="loginButton" type="submit">進入</button>
+        <p class="auth-message" id="authMessage" role="status">此網址僅供本人使用，請輸入密碼。</p>
       </form>
     </div>
   </section>
@@ -541,39 +540,25 @@
 
       async function initializeAccess() {
         const isLocalPreview = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+        el("authPassword").value = "";
+        setSyncStatus("本機儲存", "");
+
         if (!supabaseClient) {
-          el("loginButton").disabled = true;
-          el("authEmail").value = "";
-          el("authPassword").value = "";
           if (isLocalPreview) {
             el("authScreen").hidden = true;
             el("appRoot").hidden = false;
-            setSyncStatus("本機預覽", "");
             startApp();
           } else {
             el("authScreen").hidden = false;
             el("appRoot").hidden = true;
-            el("authMessage").textContent = "雲端登入尚未設定，請先完成 Supabase 設定。";
-            setSyncStatus("本機預覽", "");
+            el("authMessage").textContent = "此網址僅供本人使用，請輸入密碼。";
           }
           return;
         }
 
-        el("loginButton").disabled = false;
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-          window.setTimeout(() => {
-            if (session) activateSession(session);
-            else requireLogin();
-          }, 0);
-        });
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) {
-          requireLogin(error.message);
-        } else if (data.session) {
-          await activateSession(data.session);
-        } else {
-          requireLogin();
-        }
+        el("authScreen").hidden = false;
+        el("appRoot").hidden = true;
+        el("authMessage").textContent = "此網址僅供本人使用，請輸入密碼。";
       }
 
       function applyDailyRecharge() {
@@ -1105,27 +1090,16 @@
       el("cancelSchedule").addEventListener("click", () => el("scheduleDialog").close());
       authForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!supabaseClient) return;
-        const username = el("authEmail").value.trim();
         const password = el("authPassword").value;
-        const email = resolveLoginEmail(username);
-        if (username.toLowerCase() !== "pupu") {
-          el("authMessage").textContent = "此帳號未開放，請使用固定帳號：pupu";
-          return;
-        }
         if (password !== "9527") {
-          el("authMessage").textContent = "密碼錯誤。";
+          el("authMessage").textContent = "密碼錯誤，請重新輸入。";
+          el("authPassword").value = "";
           return;
         }
-        const button = el("loginButton");
-        button.disabled = true;
-        el("authMessage").textContent = "登入中…";
-        const { error } = await supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        });
-        button.disabled = false;
-        if (error) el("authMessage").textContent = error.message || "登入失敗。";
+        el("authScreen").hidden = true;
+        el("appRoot").hidden = false;
+        setSyncStatus("本機儲存", "");
+        startApp();
       });
       el("chooseAvatar").addEventListener("click", () => el("avatarFile").click());
       el("avatarFile").addEventListener("change", async (event) => {
