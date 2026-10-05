@@ -6,6 +6,5 @@ window.AUTO_BATTLE_SUPABASE = {
 
 window.AUTO_BATTLE_GITHUB_SYNC = {
   enabled: true,
-  // 部署 worker 後填入 https://<worker>.<account>.workers.dev
-  endpoint: ""
+  endpoint: "https://auto-battle-counter-sync.7pupu.workers.dev"
 };

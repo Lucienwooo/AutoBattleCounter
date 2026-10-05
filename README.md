@@ -4,7 +4,7 @@
 
 ## GitHub Desktop 初次上傳
 
-本機專案已初始化為 `main` branch，並連結到 `https://github.com/Lucienwooo/AutoBattleCounter.git`，尚未建立 commit。
+專案已連結到 `https://github.com/Lucienwooo/AutoBattleCounter.git`。後續提交並推送到 `main` 會自動部署網站。
 
 1. 在 GitHub Desktop 選擇 File > Add Local Repository，指定這個 `AutoBattleCounter` 資料夾。
 2. 確認變更清單包含專案檔案，輸入摘要並 Commit to main。
@@ -25,6 +25,8 @@ npx wrangler secret put ACCESS_PASSWORD
 npx wrangler deploy
 ```
 
+Windows 也可以直接雙擊 `worker/setup-worker.bat`；它會依序要求輸入兩個 secrets，完成後部署 Worker。
+
 `GITHUB_TOKEN` 輸入新的 Fine-grained PAT；`ACCESS_PASSWORD` 設定新的雲端密碼。舊密碼曾出現在前端與 Git 歷史中，請勿繼續使用；選擇未公開過的長密碼。兩者都只存在 Cloudflare Worker secrets。部署完成後，把 Wrangler 顯示的 `workers.dev` 網址填入 `supabase-config.js` 的 `endpoint`，確認 `enabled: true`，再推送到 GitHub 觸發 Pages 部署。
 
 Worker 對失敗登入嘗試加上每分鐘 20 次的 Cloudflare rate limit。
@@ -40,4 +42,4 @@ GitHub Pages 網址仍是公開的；前端密碼畫面只提供操作入口，�
 - Pages 網站本身要限制成私人存取，需要 organization 的 GitHub Enterprise Cloud。
 - 網站網址會是 `https://lucienwooo.github.io/AutoBattleCounter/`。
 
-網站網址會是 `https://lucienwooo.github.io/AutoBattleCounter/`。在 Worker 尚未部署或 `endpoint` 留白時，網站只使用目前瀏覽器的本機資料，不會跨裝置同步，也不會以密碼保護資料。
+Worker 尚未部署或 `endpoint` 留白時，網站只使用目前瀏覽器的本機資料，不會跨裝置同步，也不會以密碼保護資料。
