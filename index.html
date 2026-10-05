@@ -190,6 +190,7 @@
       .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
       .stat { min-height: 88px; padding: 13px; }
       .stat-value { font-size: 22px; }
+      .stat-time .stat-value { font-size: 14px; }
       .schedule-section { margin-bottom: 20px; }
       .schedule-week { grid-template-columns: 1fr; gap: 6px; }
       .day-column { min-height: 0; padding: 9px 10px; }
@@ -344,6 +345,21 @@
         return { dailyMinutes: 120, capacityMinutes: 360, lastAccrualDate: todayKey(), characters: Array.from({ length: 6 }, (_, index) => ({ ...newCharacter(index), minutes: 120 })), todayUses: [], hotTimeDates: defaultHotTimeDates(), schedule: {} };
       }
 
+      function normalizeSchedule(savedSchedule) {
+        if (!savedSchedule || typeof savedSchedule !== "object" || Array.isArray(savedSchedule)) return {};
+        const schedule = {};
+        Object.entries(savedSchedule).forEach(([key, ids]) => {
+          if (!Array.isArray(ids)) return;
+          const weekday = /^\d{4}-\d{2}-\d{2}$/.test(key)
+            ? new Date(`${key}T12:00:00`).getDay()
+            : /^[0-6]$/.test(key) ? Number(key) : null;
+          if (weekday === null) return;
+          const weekdayKey = String(weekday);
+          schedule[weekdayKey] = [...new Set([...(schedule[weekdayKey] || []), ...ids.filter((id) => typeof id === "string")])].slice(0, 2);
+        });
+        return schedule;
+      }
+
       function loadState() {
         try {
           const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -378,9 +394,7 @@
               pauseDailyRecharge: Boolean(use.pauseDailyRecharge ?? (saved.characters.find((character) => character.id === use.characterId)?.pauseDailyRecharge || Number(saved.characters.find((character) => character.id === use.characterId)?.minutes) > 360))
             })),
             hotTimeDates: normalizeHotTimeDates(saved),
-            schedule: saved.schedule && typeof saved.schedule === "object" && !Array.isArray(saved.schedule)
-              ? Object.fromEntries(Object.entries(saved.schedule).filter(([date, ids]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Array.isArray(ids)).map(([date, ids]) => [date, ids.filter((id) => typeof id === "string").slice(0, 2)]))
-              : {}
+            schedule: normalizeSchedule(saved.schedule)
           };
         } catch {
           return createInitialState();
@@ -794,7 +808,8 @@
           const day = new Date(start);
           day.setDate(start.getDate() + offset);
           const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
-          const assignments = state.schedule[dayKey] || [];
+          const scheduleKey = String(day.getDay());
+          const assignments = state.schedule[scheduleKey] || [];
           const isHotTime = state.hotTimeDates.includes(dayKey);
           const column = document.createElement("article");
           column.className = `day-column${offset === 0 ? " is-today" : ""}${offset === 0 && isHotTime ? " is-hottime-today" : ""}`;
@@ -863,8 +878,8 @@
             remove.textContent = "×";
             remove.setAttribute("aria-label", `從${dayName.textContent}班表移除${character.name}`);
             remove.addEventListener("click", () => {
-              state.schedule[dayKey].splice(slotIndex, 1);
-              if (!state.schedule[dayKey].length) delete state.schedule[dayKey];
+              state.schedule[scheduleKey].splice(slotIndex, 1);
+              if (!state.schedule[scheduleKey].length) delete state.schedule[scheduleKey];
               saveState();
               renderSchedule();
             });
@@ -878,7 +893,7 @@
             add.className = "schedule-add";
             add.type = "button";
             add.textContent = assignments.length ? "＋ 再安排一位" : "＋ 安排角色";
-            add.addEventListener("click", () => openSchedulePicker(dayKey, dayName.textContent));
+            add.addEventListener("click", () => openSchedulePicker(scheduleKey, dayName.textContent));
             column.append(add);
           }
           week.append(column);
@@ -1029,6 +1044,37 @@
         preview.append(image);
       }
 
+      function getNextBoostWindow(now) {
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        for (let offset = 0; offset <= 7; offset += 1) {
+          const day = new Date(today);
+          day.setDate(today.getDate() + offset);
+          const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+          const weekday = day.getDay() >= 1 && day.getDay() <= 5;
+          const hotTime = state.hotTimeDates.includes(dayKey);
+          const windows = hotTime
+            ? [
+                { start: 480, end: 840, label: "08:00–14:00" },
+                { start: 1140, end: 1560, label: "19:00–02:00" }
+              ]
+            : weekday
+              ? [
+                  { start: 600, end: 840, label: "10:00–14:00" },
+                  { start: 1140, end: 1440, label: "19:00–00:00" }
+                ]
+              : [];
+          for (const window of windows) {
+            const startsAt = new Date(day);
+            startsAt.setMinutes(window.start);
+            if (startsAt > now) {
+              return { duration: window.end - window.start, hotTime, label: window.label };
+            }
+          }
+        }
+        return null;
+      }
+
       function updateTimeWindow() {
         const now = new Date();
         const weekday = now.getDay() >= 1 && now.getDay() <= 5;
@@ -1079,16 +1125,11 @@
             hint.textContent = minuteOfDay < 840 ? "目前時段 10:00–14:00" : "目前時段 19:00–00:00";
           }
         } else {
-          countdown.textContent = "非計算時段";
-          if (hotTimeToday) {
-            hint.textContent = minuteOfDay < 480
-              ? "HotTime 下一時段 08:00–14:00"
-              : "HotTime 下一時段 19:00–02:00";
-          } else if (weekday) {
-            hint.textContent = minuteOfDay < 600 ? "下一時段 10:00–14:00" : "下一時段 19:00–00:00";
-          } else {
-            hint.textContent = "週末暫停計算";
-          }
+          const nextWindow = getNextBoostWindow(now);
+          countdown.textContent = nextWindow ? `下次加倍時間${nextWindow.duration}` : "暫無加倍時段";
+          hint.textContent = nextWindow
+            ? `${nextWindow.hotTime ? "HotTime " : ""}下一時段 ${nextWindow.label}`
+            : "目前沒有已安排的加倍時段";
         }
         el("todayLabel").textContent = dateFormatter.format(now);
       }
