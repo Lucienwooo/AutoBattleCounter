@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17201b">
+  <title>狩獵時間 | 角色計數器</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #151c18;
+      --panel: #202923;
+      --panel-raised: #27322b;
+      --line: #39463c;
+      --ink: #f3f3e9;
+      --muted: #a1aea1;
+      --lime: #d9ee70;
+      --orange: #ff9e58;
+      --red: #ff7468;
+      --mint: #80d7b1;
+      --display: "Aptos Display", "Microsoft JhengHei", sans-serif;
+      --body: "Aptos", "Microsoft JhengHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      background-color: var(--page);
+      background-image: repeating-linear-gradient(135deg, transparent 0 38px, #ffffff04 39px 40px);
+    }
+
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+
+    .app-shell { width: min(1180px, calc(100% - 44px)); margin: 0 auto; padding: 30px 0 44px; }
+    #appRoot[hidden], #authScreen[hidden] { display: none; }
+    .auth-screen { display: grid; min-height: 100vh; place-items: center; padding: 20px; }
+    .auth-panel { width: min(100%, 390px); padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .auth-panel h1 { margin-bottom: 20px; font-size: 25px; }
+    .auth-form { display: grid; gap: 12px; }
+    .auth-field { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+    .auth-field input { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 5px; outline: none; color: var(--ink); background: #17201b; }
+    .auth-field input:focus { border-color: var(--lime); }
+    .auth-message { min-height: 18px; margin: 2px 0 0; color: var(--orange); font-size: 11px; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .sync-status { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .sync-status[data-state="saved"] { color: var(--mint); }
+    .sync-status[data-state="error"] { color: var(--red); }
+
+    .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 26px; }
+    .eyebrow { margin: 0 0 8px; color: var(--lime); font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; }
+    h1 { margin: 0; font: 700 32px/1.15 var(--display); letter-spacing: 0; }
+    .today-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #202923cc; font-size: 12px; white-space: nowrap; }
+    .today-chip::before { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); content: ""; }
+
+    .overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat { position: relative; min-height: 104px; padding: 16px 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .stat::after { position: absolute; right: -20px; bottom: -37px; width: 100px; height: 100px; border: 1px solid #ffffff0c; border-radius: 50%; content: ""; pointer-events: none; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { display: block; margin-top: 8px; font: 700 25px/1.1 var(--display); }
+    .stat-value small { margin-left: 4px; color: var(--muted); font: 500 12px var(--body); }
+    .stat:nth-child(1) .stat-value { color: var(--lime); }
+    .stat:nth-child(2) .stat-value { color: var(--mint); }
+    .stat:nth-child(3) .stat-value { color: var(--orange); font-size: 19px; }
+    .stat-time .stat-value { color: var(--lime); font-size: 20px; }
+    .stat-time[data-active="true"] .stat-value { color: var(--mint); }
+    .stat-hint { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
+    .usage-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
+    .schedule-section { margin: 0 0 22px; }
+    .schedule-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin: 0 0 11px; }
+    .schedule-heading h2 { margin: 0; font: 650 17px/1.3 var(--display); }
+    .schedule-heading-actions { display: flex; align-items: center; gap: 8px; }
+    .hot-time-button[aria-pressed="true"] { border-color: var(--red); color: var(--red); background: #ff74681a; }
+    .schedule-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+    .day-column { min-width: 0; min-height: 122px; padding: 10px 9px 8px; border: 1px solid var(--line); border-radius: 7px; background: #1b241e; }
+    .day-column.is-today { border-color: #73844b; background: #222c22; }
+    .day-column.is-hottime-today { border: 2px solid var(--red); box-shadow: 0 0 0 2px #ff746822; }
+    .day-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; margin-bottom: 9px; }
+    .day-name { font-size: 11px; font-weight: 750; }
+    .day-date { color: var(--muted); font-size: 9px; white-space: nowrap; }
+    .hot-date-label { color: var(--red); font-size: 9px; font-weight: 750; white-space: nowrap; }
+    .day-roles { display: grid; gap: 5px; }
+    .schedule-role { display: flex; align-items: center; min-width: 0; gap: 6px; padding: 5px; border: 1px solid #ffffff12; border-radius: 5px; background: var(--panel); }
+    .schedule-info { display: grid; min-width: 0; flex: 1; gap: 2px; }
+    .schedule-avatar { width: 27px; height: 27px; flex: 0 0 27px; overflow: hidden; border-radius: 4px; color: #172018; background: var(--lime); font-size: 12px; font-weight: 750; line-height: 27px; text-align: center; }
+    .schedule-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .schedule-name { min-width: 0; flex: 1; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .schedule-minutes { color: var(--lime); font-size: 9px; white-space: nowrap; }
+    .hot-day-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 7px; color: var(--muted); font-size: 9px; }
+    .hot-day-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--red); }
+    .schedule-remove { display: grid; width: 20px; height: 22px; flex: 0 0 20px; place-items: center; border: 0; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; }
+    .schedule-remove:hover { color: var(--red); background: #ff74681a; }
+    .schedule-add { width: 100%; min-height: 27px; margin-top: 6px; border: 0; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; font-size: 10px; text-align: left; }
+    .schedule-add:hover { color: var(--lime); background: #d9ee700d; }
+    .schedule-full { height: 33px; }
+    .schedule-options { display: grid; gap: 7px; }
+    .schedule-option { display: flex; align-items: center; width: 100%; gap: 10px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #17201b; cursor: pointer; text-align: left; }
+    .schedule-option:hover { border-color: var(--lime); }
+    .schedule-option:disabled { opacity: .4; cursor: not-allowed; }
+
+    .field input:focus, .field textarea:focus { border-color: var(--lime); box-shadow: 0 0 0 2px #d9ee7022; }
+
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin: 27px 0 13px; }
+    .section-heading h2 { margin: 0; font: 650 17px/1.3 var(--display); }
+    .section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .button { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-raised); cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+    .button:hover { border-color: #73816e; background: #303c32; }
+    .button:active { transform: translateY(1px); }
+    .button:disabled { opacity: .45; cursor: not-allowed; }
+    .button-primary { border-color: var(--lime); color: #172018; background: var(--lime); font-weight: 750; }
+    .button-primary:hover { border-color: #e8f89a; background: #e8f89a; }
+    .button-quiet { min-height: 32px; padding: 0 10px; color: var(--muted); background: transparent; font-size: 11px; }
+    .button-small { min-height: 31px; padding: 0 10px; font-size: 11px; }
+
+    .roster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .character-card { --accent: var(--lime); position: relative; min-width: 0; padding: 15px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); animation: enter .32s ease both; }
+    .character-card::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); content: ""; opacity: .9; }
+    .character-card[data-color="1"] { --accent: #ff9e58; }
+    .character-card[data-color="2"] { --accent: #80d7b1; }
+    .character-card[data-color="3"] { --accent: #f17b79; }
+    .character-card[data-color="4"] { --accent: #d9b6f0; }
+    .character-card[data-color="5"] { --accent: #87c6ef; }
+    .character-card.is-selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 72%); }
+    .card-head { display: flex; align-items: flex-start; gap: 12px; min-height: 72px; }
+    .portrait { display: grid; width: 64px; height: 64px; flex: 0 0 64px; place-items: center; overflow: hidden; border: 1px solid #ffffff20; border-radius: 8px; color: #172018; background: var(--accent); font: 700 20px var(--display); }
+    .portrait img { width: 100%; height: 100%; object-fit: cover; }
+    .character-info { min-width: 0; flex: 1; padding-top: 2px; }
+    .character-tag { display: flex; align-items: center; gap: 6px; min-height: 16px; color: var(--accent); font-size: 10px; font-weight: 700; }
+    .used-tag { padding: 2px 6px; border-radius: 3px; color: #351b15; background: var(--orange); font-size: 9px; }
+    .character-name { margin: 4px 0 3px; overflow: hidden; font: 650 15px/1.25 var(--display); text-overflow: ellipsis; white-space: nowrap; }
+    .character-meta { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .card-menu { display: flex; gap: 5px; margin: -3px -4px 0 0; }
+    .icon-button { display: grid; width: 40px; height: 29px; flex: 0 0 40px; place-items: center; border: 1px solid transparent; border-radius: 5px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .icon-button:hover { border-color: var(--line); color: var(--ink); background: var(--panel-raised); }
+    .meter-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 14px 0 7px; }
+    .minutes { font: 700 24px/1 var(--display); }
+    .minutes-edit-trigger { padding: 0; border: 0; color: var(--ink); background: transparent; cursor: text; text-align: left; }
+    .minutes-edit-trigger:hover { color: var(--lime); }
+    .minutes-editor { width: 108px; min-height: 30px; padding: 1px 4px; border: 1px solid var(--lime); border-radius: 4px; outline: none; color: var(--ink); background: #17201b; font: 700 22px/1 var(--display); }
+    .minutes small { color: var(--muted); font: 500 11px var(--body); }
+    .capacity { color: var(--muted); font-size: 10px; }
+    .meter { height: 5px; overflow: hidden; border-radius: 5px; background: #111713; }
+    .meter-fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width .3s ease; }
+    .card-note { min-height: 16px; margin: 9px 0 11px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .card-state { color: var(--muted); font-size: 10px; }
+    .consume-button { min-height: 32px; padding: 0 10px; border-color: color-mix(in srgb, var(--accent), transparent 60%); color: var(--accent); background: color-mix(in srgb, var(--accent), transparent 92%); font-size: 10px; font-weight: 700; }
+    .consume-button:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent), transparent 84%); }
+    .empty-state { grid-column: 1 / -1; padding: 42px 20px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+
+    dialog { width: min(480px, calc(100% - 28px)); max-height: min(88vh, 760px); padding: 0; overflow: auto; border: 1px solid #526052; border-radius: 9px; color: var(--ink); background: #202923; box-shadow: 0 24px 80px #0009; }
+    dialog::backdrop { background: #080c0aaf; backdrop-filter: blur(3px); }
+    .dialog-form { padding: 21px; }
+    .dialog-title { margin: 0 0 4px; font: 700 19px var(--display); }
+    .dialog-hint { margin: 0 0 17px; color: var(--muted); font-size: 11px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; }
+    .field.full { grid-column: 1 / -1; }
+    .field input, .field textarea { width: 100%; min-height: 37px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; outline: none; color: var(--ink); background: #17201b; }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .avatar-row { display: flex; align-items: center; gap: 11px; margin: 0 0 15px; }
+    .avatar-preview { width: 54px; height: 54px; flex: 0 0 54px; overflow: hidden; border-radius: 7px; background: #39463c; }
+    .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .dialog-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 19px; }
+    .dialog-actions-right { display: flex; gap: 7px; }
+    .toast { position: fixed; right: 22px; bottom: 20px; z-index: 5; max-width: calc(100% - 44px); padding: 11px 14px; border: 1px solid #566653; border-radius: 6px; color: var(--ink); background: #27322b; box-shadow: 0 8px 28px #0006; font-size: 12px; animation: enter .18s ease both; }
+
+    @keyframes enter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 960px) { .schedule-week { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 850px) { .roster { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 620px) {
+      .app-shell { width: min(100% - 28px, 520px); padding-top: 22px; }
+      .topbar { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 19px; }
+      h1 { font-size: 28px; }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .stat { min-height: 88px; padding: 13px; }
+      .stat-value { font-size: 22px; }
+      .schedule-section { margin-bottom: 20px; }
+      .schedule-week { grid-template-columns: 1fr; gap: 6px; }
+      .day-column { min-height: 0; padding: 9px 10px; }
+      .day-heading { margin-bottom: 5px; }
+      .day-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .schedule-add { width: auto; min-width: 92px; margin: 4px 0 0; }
+      .section-heading { align-items: center; }
+      .roster { grid-template-columns: 1fr; gap: 9px; }
+      .character-card { padding: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <section class="auth-screen" id="authScreen" hidden>
+    <div class="auth-panel">
+      <p class="eyebrow">Auto Battle / Private Data</p>
+      <h1>登入狩獵時間</h1>
+      <form class="auth-form" id="authForm">
+        <label class="auth-field">電子郵件<input id="authEmail" type="email" autocomplete="username" required></label>
+        <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="current-password" required></label>
+        <button class="button button-primary" id="loginButton" type="submit">登入</button>
+        <p class="auth-message" id="authMessage" role="status"></p>
+      </form>
+    </div>
+  </section>
+  <div id="appRoot" hidden>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Auto Battle / Roster Board</p>
+        <h1>狩獵時間</h1>
+      </div>
+      <div class="top-actions">
+        <span class="sync-status" id="syncStatus" data-state="">本機儲存</span>
+        <button class="button button-quiet" id="logoutButton" type="button" hidden>登出</button>
+        <div class="today-chip" id="todayLabel"></div>
+      </div>
+    </header>
+
+    <section class="overview" aria-label="計數總覽">
+      <article class="stat"><span class="stat-label">今日消耗</span><div class="usage-row"><strong class="stat-value" id="todayUsage">尚未選擇</strong><button class="button button-quiet" id="undoUse" type="button" hidden>撤銷最近</button></div></article>
+      <article class="stat stat-time" id="timeWindowStat" data-active="false"><span class="stat-label">狩獵倒數</span><strong class="stat-value" id="windowCountdown">非計算時段</strong><span class="stat-hint" id="windowHint">平日 10:00–14:00／19:00–00:00</span></article>
+    </section>
+
+    <section class="schedule-section" aria-labelledby="scheduleTitle">
+      <div class="schedule-heading"><h2 id="scheduleTitle">7 日班表</h2><div class="schedule-heading-actions"><button class="button button-small" id="hotTimeConfirm" type="button" hidden>確認</button><button class="button button-small hot-time-button" id="hotTimeToggle" type="button" aria-pressed="false">HotTime</button></div></div>
+      <div class="schedule-week" id="scheduleWeek"></div>
+    </section>
+
+    <section aria-labelledby="rosterTitle">
+      <div class="section-heading">
+        <div><h2 id="rosterTitle">角色圖卡</h2></div>
+        <button class="button button-primary" id="addCharacter" type="button">＋ 新增角色</button>
+      </div>
+      <div class="roster" id="roster"></div>
+    </section>
+  </main>
+
+  <dialog id="characterDialog">
+    <form class="dialog-form" id="characterForm">
+      <h2 class="dialog-title" id="dialogTitle">編輯角色</h2>
+      <p class="dialog-hint">角色名稱、等級與備註都可隨時調整；點選欄位後按 Ctrl+V 可貼上剪貼簿圖片。</p>
+      <div class="avatar-row">
+        <div class="avatar-preview" id="avatarPreview"></div>
+        <div class="avatar-actions">
+          <button class="button button-small" id="chooseAvatar" type="button">選擇頭像</button>
+          <button class="button button-quiet" id="removeAvatar" type="button">移除頭像</button>
+          <input id="avatarFile" type="file" accept="image/*" hidden>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label class="field">卡片標籤<input name="title" maxlength="24" placeholder="例如：主教"></label>
+        <label class="field">角色名稱<input name="name" maxlength="32" required placeholder="輸入角色名稱"></label>
+        <label class="field">等級<input name="level" maxlength="12" placeholder="例如：263"></label>
+        <label class="field">目前剩餘時間（分鐘）<input name="minutes" type="number" min="0" max="999" step="1" required></label>
+        <label class="field full">備註<input name="note" maxlength="80" placeholder="職業、裝備或其他提醒"></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button-quiet" id="deleteCharacter" type="button">刪除角色</button>
+        <div class="dialog-actions-right"><button class="button button-primary" type="submit">完成</button></div>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="scheduleDialog">
+    <div class="dialog-form">
+      <h2 class="dialog-title" id="scheduleDialogTitle">安排角色</h2>
+      <div class="schedule-options" id="scheduleOptions"></div>
+      <div class="dialog-actions"><span></span><div class="dialog-actions-right"><button class="button" id="cancelSchedule" type="button">取消</button></div></div>
+    </div>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  </div>
+
+  <script src="./supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "autoBattleCounter.v1";
+      const colors = ["0", "1", "2", "3", "4", "5"];
+      const dateFormatter = new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+      const todayKey = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      };
+      const dateKeysForNextSevenDays = () => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        return Array.from({ length: 7 }, (_, offset) => {
+          const date = new Date(start);
+          date.setDate(start.getDate() + offset);
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        });
+      };
+      const defaultHotTimeDates = () => dateKeysForNextSevenDays().filter((dateKey) => {
+        const date = new Date(`${dateKey}T12:00:00`);
+        return date.getDay() === 0 || date.getDay() === 6;
+      });
+      const normalizeHotTimeDates = (saved) => {
+        const today = todayKey();
+        const now = new Date();
+        const previousDay = new Date(now);
+        previousDay.setDate(previousDay.getDate() - 1);
+        const previousKey = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, "0")}-${String(previousDay.getDate()).padStart(2, "0")}`;
+        const firstValidDay = now.getHours() * 60 + now.getMinutes() < 120 ? previousKey : today;
+        if (Array.isArray(saved.hotTimeDates)) {
+          return [...new Set(saved.hotTimeDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= firstValidDay))];
+        }
+        const legacyDays = Array.isArray(saved.hotTimeDays) ? saved.hotTimeDays : [0, 6];
+        const dates = dateKeysForNextSevenDays().filter((dateKey) => legacyDays.includes(new Date(`${dateKey}T12:00:00`).getDay()));
+        if (firstValidDay === previousKey && legacyDays.includes(previousDay.getDay())) dates.unshift(previousKey);
+        return dates;
+      };
+      const newCharacter = (index) => ({
+        id: globalThis.crypto?.randomUUID?.() || `character-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        title: `角色 ${String(index + 1).padStart(2, "0")}`,
+        name: "尚未命名",
+        level: "",
+        server: "",
+        note: "",
+        minutes: 0,
+        pauseDailyRecharge: false,
+        lastConsumedDate: null,
+        avatar: ""
+      });
+
+      function createInitialState() {
+        return { dailyMinutes: 120, capacityMinutes: 360, lastAccrualDate: todayKey(), characters: Array.from({ length: 6 }, (_, index) => ({ ...newCharacter(index), minutes: 120 })), todayUses: [], hotTimeDates: defaultHotTimeDates(), schedule: {} };
+      }
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (!saved || !Array.isArray(saved.characters)) return createInitialState();
+          const initial = createInitialState();
+          const legacyUse = saved.todayUse && saved.todayUse.date === todayKey() ? [saved.todayUse] : [];
+          const todayUses = Array.isArray(saved.todayUses) ? saved.todayUses : legacyUse;
+          return {
+            ...initial,
+            ...saved,
+            dailyMinutes: 120,
+            capacityMinutes: 360,
+            characters: saved.characters.map((character, index) => {
+              const minutes = clampNumber(character.minutes, 0, 0, 999);
+              return {
+                ...newCharacter(index),
+                ...character,
+                server: undefined,
+                minutes,
+                pauseDailyRecharge: Boolean(character.pauseDailyRecharge) || minutes > 360,
+                lastConsumedDate: /^\d{4}-\d{2}-\d{2}$/.test(character.lastConsumedDate || "")
+                  ? character.lastConsumedDate
+                  : todayUses.some((use) => use?.characterId === character.id && use.date === todayKey()) ? todayKey() : null
+              };
+            }),
+            lastAccrualDate: /^\d{4}-\d{2}-\d{2}$/.test(saved.lastAccrualDate || "") ? saved.lastAccrualDate : todayKey(),
+            todayUse: undefined,
+            todayUses: todayUses.filter((use) => use && use.date === todayKey() && typeof use.characterId === "string").map((use) => ({
+              date: todayKey(),
+              characterId: use.characterId,
+              minutes: clampNumber(use.minutes ?? use.minutesBefore, 0, 0, 999),
+              pauseDailyRecharge: Boolean(use.pauseDailyRecharge ?? (saved.characters.find((character) => character.id === use.characterId)?.pauseDailyRecharge || Number(saved.characters.find((character) => character.id === use.characterId)?.minutes) > 360))
+            })),
+            hotTimeDates: normalizeHotTimeDates(saved),
+            schedule: saved.schedule && typeof saved.schedule === "object" && !Array.isArray(saved.schedule)
+              ? Object.fromEntries(Object.entries(saved.schedule).filter(([date, ids]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Array.isArray(ids)).map(([date, ids]) => [date, ids.filter((id) => typeof id === "string").slice(0, 2)]))
+              : {}
+          };
+        } catch {
+          return createInitialState();
+        }
+      }
+
+      function clampNumber(value, fallback, min, max) {
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.floor(number))) : fallback;
+      }
+
+      const state = loadState();
+      const el = (id) => document.getElementById(id);
+      const roster = el("roster");
+      const dialog = el("characterDialog");
+      const form = el("characterForm");
+      const authForm = el("authForm");
+      const supabaseSettings = window.AUTO_BATTLE_SUPABASE || {};
+      const supabaseClient = window.supabase?.createClient && supabaseSettings.url && supabaseSettings.anonKey
+        ? window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey)
+        : null;
+      let editingId = null;
+      let draftAvatar = "";
+      let toastTimer = 0;
+      let currentUser = null;
+      let cloudReady = false;
+      let loadingUserId = null;
+      let cloudSaveTimer = null;
+      let cloudSaveQueue = Promise.resolve();
+      let appTimer = null;
+      let editingHotTime = false;
+      let draftHotTimeDates = [];
+
+      function dayNumber(dateString) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch {
+          showToast("儲存空間不足，請移除較大的頭像圖片後再試一次。");
+          setSyncStatus("本機儲存空間不足", "error");
+          return;
+        }
+        if (!cloudReady || !supabaseClient || !currentUser) {
+          setSyncStatus(supabaseClient ? "尚未登入" : "本機預覽", "");
+          return;
+        }
+        setSyncStatus("同步中…", "");
+        window.clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = window.setTimeout(() => {
+          const snapshot = JSON.parse(JSON.stringify(state));
+          cloudSaveQueue = cloudSaveQueue.catch(() => {}).then(async () => {
+            const { error } = await supabaseClient.from("auto_battle_counter_data").upsert({
+              user_id: currentUser.id,
+              data: snapshot,
+              updated_at: new Date().toISOString()
+            });
+            if (error) throw error;
+          }).then(() => {
+            setSyncStatus("已同步", "saved");
+          }).catch((error) => {
+            setSyncStatus("雲端同步失敗", "error");
+            showToast(error.message || "雲端同步失敗，資料仍保存在本機。");
+          });
+        }, 350);
+      }
+
+      function setSyncStatus(text, stateName) {
+        const status = el("syncStatus");
+        status.textContent = text;
+        status.dataset.state = stateName;
+      }
+
+      function startApp() {
+        window.clearInterval(appTimer);
+        applyDailyRecharge();
+        render();
+        updateTimeWindow();
+        appTimer = window.setInterval(() => {
+          if (applyDailyRecharge()) render();
+          updateTimeWindow();
+        }, 1000);
+      }
+
+      async function activateSession(session) {
+        const userId = session.user.id;
+        if (cloudReady && currentUser?.id === userId) return;
+        if (loadingUserId === userId) return;
+        loadingUserId = userId;
+        currentUser = session.user;
+        setSyncStatus("載入雲端資料…", "");
+        try {
+          const { data, error } = await supabaseClient
+            .from("auto_battle_counter_data")
+            .select("data")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (error) throw error;
+          if (data?.data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data));
+            const remoteState = loadState();
+            Object.keys(state).forEach((key) => delete state[key]);
+            Object.assign(state, remoteState);
+          } else {
+            const { error: saveError } = await supabaseClient.from("auto_battle_counter_data").upsert({
+              user_id: userId,
+              data: JSON.parse(JSON.stringify(state))
+            });
+            if (saveError) throw saveError;
+          }
+          cloudReady = true;
+          el("authScreen").hidden = true;
+          el("appRoot").hidden = false;
+          el("logoutButton").hidden = false;
+          setSyncStatus("已同步", "saved");
+          startApp();
+        } catch (error) {
+          cloudReady = false;
+          currentUser = null;
+          el("appRoot").hidden = true;
+          el("authScreen").hidden = false;
+          el("authMessage").textContent = error.message || "無法載入雲端資料。";
+        } finally {
+          loadingUserId = null;
+        }
+      }
+
+      function requireLogin(message = "請登入以同步你的角色與班表。") {
+        cloudReady = false;
+        currentUser = null;
+        window.clearTimeout(cloudSaveTimer);
+        window.clearInterval(appTimer);
+        el("appRoot").hidden = true;
+        el("authScreen").hidden = false;
+        el("logoutButton").hidden = true;
+        el("authMessage").textContent = message;
+      }
+
+      async function saveEditorDraft() {
+        const character = state.characters.find((item) => item.id === editingId);
+        if (!character) return;
+        character.title = form.elements.title.value.trim() || "未分類";
+        character.name = form.elements.name.value.trim();
+        character.level = form.elements.level.value.trim();
+        const minutes = clampNumber(form.elements.minutes.value, 0, 0, 999);
+        if (minutes !== character.minutes) {
+          character.lastConsumedDate = null;
+          state.todayUses = state.todayUses.filter((use) => use.characterId !== character.id);
+        }
+        character.minutes = minutes;
+        character.pauseDailyRecharge = minutes > state.capacityMinutes;
+        character.note = form.elements.note.value.trim();
+        character.avatar = draftAvatar;
+        saveState();
+        renderSchedule();
+      }
+
+      async function initializeAccess() {
+        const isLocalPreview = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+        if (!supabaseClient) {
+          if (isLocalPreview) {
+            el("authScreen").hidden = true;
+            el("appRoot").hidden = false;
+            setSyncStatus("本機預覽", "");
+            startApp();
+          } else {
+            requireLogin("雲端登入尚未設定，請先完成 Supabase 設定。");
+            el("loginButton").disabled = true;
+          }
+          return;
+        }
+
+        el("loginButton").disabled = false;
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+          window.setTimeout(() => {
+            if (session) activateSession(session);
+            else requireLogin();
+          }, 0);
+        });
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) {
+          requireLogin(error.message);
+        } else if (data.session) {
+          await activateSession(data.session);
+        } else {
+          requireLogin();
+        }
+      }
+
+      function applyDailyRecharge() {
+        const today = todayKey();
+        const elapsedDays = dayNumber(today) - dayNumber(state.lastAccrualDate);
+        if (elapsedDays <= 0) return false;
+        const recharge = state.dailyMinutes * elapsedDays;
+        state.characters.forEach((character) => {
+          if (character.pauseDailyRecharge) return;
+          character.minutes = Math.min(state.capacityMinutes, character.minutes + recharge);
+        });
+        state.lastAccrualDate = today;
+        state.todayUses = [];
+        saveState();
+        showToast(`新的一天，所有角色已補充 ${state.dailyMinutes} 分鐘。`);
+        return true;
+      }
+
+      function formatMinutes(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const remainder = minutes % 60;
+        return hours ? `${hours} 小時 ${remainder} 分` : `${remainder} 分鐘`;
+      }
+
+      function showToast(message) {
+        const toast = el("toast");
+        toast.textContent = message;
+        toast.hidden = false;
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2600);
+      }
+
+      function render() {
+        el("todayLabel").textContent = dateFormatter.format(new Date());
+        const usedNames = state.todayUses.map((use) => state.characters.find((character) => character.id === use.characterId)?.name).filter(Boolean);
+        el("todayUsage").textContent = usedNames.join("、") || "尚未選擇";
+        el("undoUse").hidden = !state.todayUses.length;
+        el("todayUsage").title = usedNames.join("、");
+        renderSchedule();
+        roster.replaceChildren();
+
+        if (!state.characters.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "目前沒有角色，新增一張圖卡開始記錄。";
+          roster.append(empty);
+          return;
+        }
+
+        state.characters.forEach((character, index) => {
+          const consumedToday = character.lastConsumedDate === todayKey();
+          const card = document.createElement("article");
+          card.className = `character-card${consumedToday ? " is-selected" : ""}`;
+          card.dataset.color = colors[index % colors.length];
+          const head = document.createElement("div");
+          head.className = "card-head";
+          const portrait = document.createElement("div");
+          portrait.className = "portrait";
+          if (character.avatar) {
+            const image = document.createElement("img");
+            image.src = character.avatar;
+            image.alt = `${character.name}頭像`;
+            portrait.append(image);
+          } else {
+            portrait.textContent = [...(character.name || "角")][0] || "角";
+          }
+
+          const info = document.createElement("div");
+          info.className = "character-info";
+          const tag = document.createElement("div");
+          tag.className = "character-tag";
+          tag.append(document.createTextNode(character.title || "未分類"));
+          if (consumedToday) {
+            const badge = document.createElement("span");
+            badge.className = "used-tag";
+            badge.textContent = "今日已消耗";
+            tag.append(badge);
+          }
+          const name = document.createElement("h3");
+          name.className = "character-name";
+          name.textContent = character.name || "尚未命名";
+          const meta = document.createElement("div");
+          meta.className = "character-meta";
+          meta.textContent = character.level ? `LV.${character.level}` : "未設定等級";
+          info.append(tag, name, meta);
+
+          const menu = document.createElement("div");
+          menu.className = "card-menu";
+          const edit = document.createElement("button");
+          edit.className = "icon-button";
+          edit.type = "button";
+          edit.title = "編輯角色資料";
+          edit.setAttribute("aria-label", `編輯${character.name}`);
+          edit.textContent = "編輯";
+          edit.addEventListener("click", () => openEditor(character.id));
+          menu.append(edit);
+          head.append(portrait, info, menu);
+
+          const meterRow = document.createElement("div");
+          meterRow.className = "meter-row";
+          const time = document.createElement("button");
+          time.className = "minutes minutes-edit-trigger";
+          time.type = "button";
+          time.title = "雙擊或長按編輯時間";
+          time.setAttribute("aria-label", `${character.name}目前${character.minutes}分鐘，雙擊或長按編輯`);
+          time.innerHTML = `${character.minutes}<small> 分鐘</small>`;
+          time.addEventListener("dblclick", () => startInlineMinutesEdit(character.id, time));
+          let longPressTimer = null;
+          time.addEventListener("pointerdown", (event) => {
+            if (event.pointerType === "mouse") return;
+            longPressTimer = window.setTimeout(() => startInlineMinutesEdit(character.id, time), 550);
+          });
+          ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+            time.addEventListener(eventName, () => window.clearTimeout(longPressTimer));
+          });
+          time.addEventListener("contextmenu", (event) => event.preventDefault());
+          const capacity = document.createElement("span");
+          capacity.className = "capacity";
+          capacity.textContent = character.pauseDailyRecharge ? "手動設定" : `上限 ${state.capacityMinutes} 分`;
+          meterRow.append(time, capacity);
+
+          const meter = document.createElement("div");
+          meter.className = "meter";
+          meter.setAttribute("role", "progressbar");
+          meter.setAttribute("aria-label", `${character.name}自動狩獵時間`);
+          meter.setAttribute("aria-valuemin", "0");
+          meter.setAttribute("aria-valuemax", String(state.capacityMinutes));
+          meter.setAttribute("aria-valuenow", String(Math.min(character.minutes, state.capacityMinutes)));
+          const fill = document.createElement("div");
+          fill.className = "meter-fill";
+          fill.style.width = `${Math.min(100, character.minutes / state.capacityMinutes * 100)}%`;
+          meter.append(fill);
+
+          const note = document.createElement("p");
+          note.className = "card-note";
+          note.textContent = character.note || "尚未新增備註";
+          note.title = character.note || "尚未新增備註";
+          const actions = document.createElement("div");
+          actions.className = "card-actions";
+          const status = document.createElement("span");
+          status.className = "card-state";
+          status.textContent = character.pauseDailyRecharge
+            ? "手動超過上限，暫停補時"
+            : character.minutes >= state.capacityMinutes ? "時間已滿" : `距上限 ${state.capacityMinutes - character.minutes} 分`;
+          const consume = document.createElement("button");
+          consume.className = "button consume-button";
+          consume.type = "button";
+          consume.textContent = consumedToday ? "今日已消耗" : "選這位消耗";
+          consume.disabled = consumedToday || character.minutes === 0;
+          consume.addEventListener("click", () => consumeCharacter(character.id));
+          actions.append(status, consume);
+          card.append(head, meterRow, meter, note, actions);
+          roster.append(card);
+        });
+      }
+
+      function renderSchedule() {
+        const week = el("scheduleWeek");
+        week.replaceChildren();
+        const weekdayFormatter = new Intl.DateTimeFormat("zh-TW", { weekday: "short" });
+        const dateFormatter = new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric" });
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        for (let offset = 0; offset < 7; offset += 1) {
+          const day = new Date(start);
+          day.setDate(start.getDate() + offset);
+          const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+          const assignments = state.schedule[dayKey] || [];
+          const isHotTime = state.hotTimeDates.includes(dayKey);
+          const column = document.createElement("article");
+          column.className = `day-column${offset === 0 ? " is-today" : ""}${offset === 0 && isHotTime ? " is-hottime-today" : ""}`;
+          const heading = document.createElement("div");
+          heading.className = "day-heading";
+          const dayName = document.createElement("span");
+          dayName.className = "day-name";
+          dayName.textContent = offset === 0 ? "今天" : weekdayFormatter.format(day);
+          const dayDate = document.createElement("span");
+          dayDate.className = "day-date";
+          dayDate.textContent = dateFormatter.format(day);
+          heading.append(dayName, dayDate);
+          if (isHotTime && !editingHotTime) {
+            const hotLabel = document.createElement("span");
+            hotLabel.className = "hot-date-label";
+            hotLabel.textContent = "HotTime";
+            heading.append(hotLabel);
+          }
+          if (editingHotTime) {
+            const hotToggle = document.createElement("label");
+            hotToggle.className = "hot-day-toggle";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = draftHotTimeDates.includes(dayKey);
+            checkbox.setAttribute("aria-label", `${dayName.textContent} HotTime`);
+            checkbox.addEventListener("change", () => {
+              draftHotTimeDates = checkbox.checked
+                ? [...new Set([...draftHotTimeDates, dayKey])]
+                : draftHotTimeDates.filter((date) => date !== dayKey);
+            });
+            hotToggle.append(checkbox, document.createTextNode("HotTime"));
+            column.append(heading, hotToggle);
+          } else {
+            column.append(heading);
+          }
+
+          const roles = document.createElement("div");
+          roles.className = "day-roles";
+          assignments.forEach((characterId, slotIndex) => {
+            const character = state.characters.find((item) => item.id === characterId);
+            if (!character) return;
+            const item = document.createElement("div");
+            item.className = "schedule-role";
+            const avatar = document.createElement("div");
+            avatar.className = "schedule-avatar";
+            if (character.avatar) {
+              const image = document.createElement("img");
+              image.src = character.avatar;
+              image.alt = "";
+              avatar.append(image);
+            } else {
+              avatar.textContent = [...(character.name || "角")][0] || "角";
+            }
+            const characterName = document.createElement("span");
+            characterName.className = "schedule-name";
+            characterName.textContent = character.name;
+            const characterMinutes = document.createElement("span");
+            characterMinutes.className = "schedule-minutes";
+            characterMinutes.textContent = `剩餘 ${character.minutes} 分`;
+            const info = document.createElement("div");
+            info.className = "schedule-info";
+            info.append(characterName, characterMinutes);
+            const remove = document.createElement("button");
+            remove.className = "schedule-remove";
+            remove.type = "button";
+            remove.textContent = "×";
+            remove.setAttribute("aria-label", `從${dayName.textContent}班表移除${character.name}`);
+            remove.addEventListener("click", () => {
+              state.schedule[dayKey].splice(slotIndex, 1);
+              if (!state.schedule[dayKey].length) delete state.schedule[dayKey];
+              saveState();
+              renderSchedule();
+            });
+            item.append(avatar, info, remove);
+            roles.append(item);
+          });
+
+          column.append(heading, roles);
+          if (assignments.length < 2) {
+            const add = document.createElement("button");
+            add.className = "schedule-add";
+            add.type = "button";
+            add.textContent = assignments.length ? "＋ 再安排一位" : "＋ 安排角色";
+            add.addEventListener("click", () => openSchedulePicker(dayKey, dayName.textContent));
+            column.append(add);
+          }
+          week.append(column);
+        }
+      }
+
+      function openSchedulePicker(dayKey, dayName) {
+        const assigned = state.schedule[dayKey] || [];
+        if (assigned.length >= 2) return;
+        el("scheduleDialogTitle").textContent = `安排${dayName}的狩獵角色`;
+        const options = el("scheduleOptions");
+        options.replaceChildren();
+        state.characters.forEach((character) => {
+          const button = document.createElement("button");
+          button.className = "schedule-option";
+          button.type = "button";
+          button.disabled = assigned.includes(character.id);
+          const avatar = document.createElement("span");
+          avatar.className = "schedule-avatar";
+          if (character.avatar) {
+            const image = document.createElement("img");
+            image.src = character.avatar;
+            image.alt = "";
+            avatar.append(image);
+          } else {
+            avatar.textContent = [...(character.name || "角")][0] || "角";
+          }
+          const name = document.createElement("span");
+          name.textContent = character.name;
+          const minutes = document.createElement("span");
+          minutes.className = "schedule-minutes";
+          minutes.textContent = `剩餘 ${character.minutes} 分`;
+          const info = document.createElement("span");
+          info.className = "schedule-info";
+          info.append(name, minutes);
+          button.append(avatar, info);
+          button.addEventListener("click", () => {
+            state.schedule[dayKey] = [...assigned, character.id];
+            saveState();
+            el("scheduleDialog").close();
+            renderSchedule();
+          });
+          options.append(button);
+        });
+        el("scheduleDialog").showModal();
+      }
+
+      function startInlineMinutesEdit(characterId, displayButton) {
+        const character = state.characters.find((item) => item.id === characterId);
+        if (!character || !displayButton.isConnected) return;
+        const input = document.createElement("input");
+        input.className = "minutes-editor";
+        input.type = "number";
+        input.min = "0";
+        input.max = "999";
+        input.step = "1";
+        input.inputMode = "numeric";
+        input.setAttribute("aria-label", `${character.name}剩餘分鐘`);
+        input.value = String(character.minutes);
+        let finished = false;
+        const saveInputValue = () => {
+          const nextMinutes = clampNumber(input.value, character.minutes, 0, 999);
+          if (nextMinutes !== character.minutes) {
+            character.lastConsumedDate = null;
+            state.todayUses = state.todayUses.filter((use) => use.characterId !== character.id);
+          }
+          character.minutes = nextMinutes;
+          character.pauseDailyRecharge = nextMinutes > state.capacityMinutes;
+          saveState();
+          renderSchedule();
+        };
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          render();
+        };
+        input.addEventListener("input", saveInputValue);
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            input.blur();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            input.blur();
+          }
+        });
+        input.addEventListener("change", () => input.blur());
+        input.addEventListener("blur", finish);
+        displayButton.replaceWith(input);
+        input.focus();
+        input.select();
+      }
+
+      function consumeCharacter(characterId) {
+        const character = state.characters.find((item) => item.id === characterId);
+        if (!character || character.minutes <= 0 || character.lastConsumedDate === todayKey()) return;
+        state.todayUses.push({
+          date: todayKey(),
+          characterId,
+          minutes: character.minutes,
+          pauseDailyRecharge: character.pauseDailyRecharge
+        });
+        character.lastConsumedDate = todayKey();
+        character.minutes = 0;
+        character.pauseDailyRecharge = false;
+        saveState();
+        render();
+        showToast(`${character.name}已標記為今日消耗，剩餘時間已歸零。`);
+      }
+
+      function undoTodayUse() {
+        const lastUse = state.todayUses.pop();
+        if (!lastUse) return;
+        const character = state.characters.find((item) => item.id === lastUse.characterId);
+        if (character) {
+          character.minutes = Math.min(999, lastUse.minutes);
+          character.pauseDailyRecharge = lastUse.pauseDailyRecharge;
+          character.lastConsumedDate = null;
+        }
+        saveState();
+        render();
+        showToast("已撤銷今日消耗記錄。");
+      }
+
+      function openEditor(characterId) {
+        const character = state.characters.find((item) => item.id === characterId);
+        if (!character) return;
+        editingId = characterId;
+        draftAvatar = character.avatar || "";
+        el("dialogTitle").textContent = "編輯角色資料";
+        form.elements.title.value = character.title || "";
+        form.elements.name.value = character.name || "";
+        form.elements.level.value = character.level || "";
+        form.elements.minutes.value = character.minutes;
+        form.elements.note.value = character.note || "";
+        el("deleteCharacter").hidden = false;
+        updateAvatarPreview();
+        dialog.showModal();
+      }
+
+      function updateAvatarPreview() {
+        const preview = el("avatarPreview");
+        preview.replaceChildren();
+        if (!draftAvatar) return;
+        const image = document.createElement("img");
+        image.src = draftAvatar;
+        image.alt = "角色頭像預覽";
+        preview.append(image);
+      }
+
+      function updateTimeWindow() {
+        const now = new Date();
+        const weekday = now.getDay() >= 1 && now.getDay() <= 5;
+        const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+        const previousDay = new Date(now);
+        previousDay.setDate(previousDay.getDate() - 1);
+        const previousKey = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, "0")}-${String(previousDay.getDate()).padStart(2, "0")}`;
+        const today = todayKey();
+        const datesBeforeExpiry = state.hotTimeDates.length;
+        state.hotTimeDates = state.hotTimeDates.filter((date) => date >= today || (date === previousKey && minuteOfDay < 120));
+        if (state.hotTimeDates.length !== datesBeforeExpiry) saveState();
+        const hotTimeToday = state.hotTimeDates.includes(today);
+        const previousHotTime = state.hotTimeDates.includes(previousKey);
+        let windowEnd = null;
+        let hotTimeWindow = false;
+
+        if (previousHotTime && minuteOfDay < 120) {
+          windowEnd = new Date(now);
+          windowEnd.setHours(2, 0, 0, 0);
+          hotTimeWindow = true;
+        } else if (hotTimeToday && minuteOfDay >= 480 && minuteOfDay < 840) {
+          windowEnd = new Date(now);
+          windowEnd.setHours(14, 0, 0, 0);
+          hotTimeWindow = true;
+        } else if (hotTimeToday && minuteOfDay >= 1140) {
+          windowEnd = new Date(now);
+          windowEnd.setDate(windowEnd.getDate() + 1);
+          windowEnd.setHours(2, 0, 0, 0);
+          hotTimeWindow = true;
+        } else if (weekday && !hotTimeToday && minuteOfDay >= 600 && minuteOfDay < 840) {
+          windowEnd = new Date(now);
+          windowEnd.setHours(14, 0, 0, 0);
+        } else if (weekday && !hotTimeToday && minuteOfDay >= 1140) {
+          windowEnd = new Date(now);
+          windowEnd.setHours(24, 0, 0, 0);
+        }
+
+        const active = Boolean(windowEnd);
+        const countdown = el("windowCountdown");
+        const hint = el("windowHint");
+        el("timeWindowStat").dataset.active = String(active);
+        if (active) {
+          const remaining = Math.ceil((windowEnd.getTime() - now.getTime()) / 60_000);
+          countdown.textContent = `剩餘 ${remaining} 分鐘`;
+          if (hotTimeWindow) {
+            hint.textContent = minuteOfDay < 120 || minuteOfDay >= 1140 ? "HotTime 19:00–02:00" : "HotTime 08:00–14:00";
+          } else {
+            hint.textContent = minuteOfDay < 840 ? "目前時段 10:00–14:00" : "目前時段 19:00–00:00";
+          }
+        } else {
+          countdown.textContent = "非計算時段";
+          if (hotTimeToday) {
+            hint.textContent = minuteOfDay < 480
+              ? "HotTime 下一時段 08:00–14:00"
+              : "HotTime 下一時段 19:00–02:00";
+          } else if (weekday) {
+            hint.textContent = minuteOfDay < 600 ? "下一時段 10:00–14:00" : "下一時段 19:00–00:00";
+          } else {
+            hint.textContent = "週末暫停計算";
+          }
+        }
+        el("todayLabel").textContent = dateFormatter.format(now);
+      }
+
+      function addCharacter() {
+        applyDailyRecharge();
+        const character = { ...newCharacter(state.characters.length), minutes: state.dailyMinutes };
+        state.characters.push(character);
+        saveState();
+        render();
+        openEditor(character.id);
+      }
+
+      function compressImage(file) {
+        return new Promise((resolve, reject) => {
+          const source = new Image();
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error("無法讀取圖片"));
+          reader.onload = () => { source.src = String(reader.result); };
+          source.onerror = () => reject(new Error("圖片格式無法讀取"));
+          source.onload = () => {
+            const canvas = document.createElement("canvas");
+            const size = 256;
+            const scale = Math.min(size / source.naturalWidth, size / source.naturalHeight, 1);
+            canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
+            canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.82));
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      el("addCharacter").addEventListener("click", addCharacter);
+      el("undoUse").addEventListener("click", undoTodayUse);
+      el("hotTimeToggle").addEventListener("click", () => {
+        if (editingHotTime) {
+          editingHotTime = false;
+          draftHotTimeDates = [];
+        } else {
+          const today = todayKey();
+          const upcomingDates = state.hotTimeDates.filter((date) => date >= today);
+          draftHotTimeDates = upcomingDates.length ? [...upcomingDates] : defaultHotTimeDates();
+          editingHotTime = true;
+        }
+        el("hotTimeToggle").setAttribute("aria-pressed", String(editingHotTime));
+        el("hotTimeConfirm").hidden = !editingHotTime;
+        renderSchedule();
+      });
+      el("hotTimeConfirm").addEventListener("click", () => {
+        const visibleDates = new Set(dateKeysForNextSevenDays());
+        state.hotTimeDates = [...new Set(draftHotTimeDates.filter((date) => visibleDates.has(date) && date >= todayKey()))];
+        editingHotTime = false;
+        draftHotTimeDates = [];
+        el("hotTimeToggle").setAttribute("aria-pressed", "false");
+        el("hotTimeConfirm").hidden = true;
+        saveState();
+        renderSchedule();
+        updateTimeWindow();
+        showToast("HotTime 日期已確認，只套用於所選日期一次。");
+      });
+      el("logoutButton").addEventListener("click", async () => {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) showToast(error.message || "登出失敗。");
+      });
+      el("cancelSchedule").addEventListener("click", () => el("scheduleDialog").close());
+      authForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!supabaseClient) return;
+        const button = el("loginButton");
+        button.disabled = true;
+        el("authMessage").textContent = "登入中…";
+        const { error } = await supabaseClient.auth.signInWithPassword({
+          email: el("authEmail").value.trim(),
+          password: el("authPassword").value
+        });
+        button.disabled = false;
+        if (error) el("authMessage").textContent = error.message || "登入失敗。";
+      });
+      el("chooseAvatar").addEventListener("click", () => el("avatarFile").click());
+      el("avatarFile").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          draftAvatar = await compressImage(file);
+          updateAvatarPreview();
+          await saveEditorDraft();
+        } catch (error) {
+          showToast(error.message || "頭像載入失敗。");
+        } finally {
+          event.target.value = "";
+        }
+      });
+      dialog.addEventListener("paste", async (event) => {
+        const imageItem = Array.from(event.clipboardData?.items || []).find((item) => item.type.startsWith("image/"));
+        const imageFile = imageItem?.getAsFile();
+        if (!imageFile) return;
+        event.preventDefault();
+        try {
+          draftAvatar = await compressImage(imageFile);
+          updateAvatarPreview();
+          await saveEditorDraft();
+          showToast("已從剪貼簿貼上頭像並自動保存。");
+        } catch (error) {
+          showToast(error.message || "剪貼簿圖片載入失敗。");
+        }
+      });
+      el("removeAvatar").addEventListener("click", () => { draftAvatar = ""; updateAvatarPreview(); saveEditorDraft(); });
+      el("deleteCharacter").addEventListener("click", () => {
+        const character = state.characters.find((item) => item.id === editingId);
+        if (!character || !window.confirm(`刪除「${character.name}」？此操作無法復原。`)) return;
+        state.characters = state.characters.filter((item) => item.id !== editingId);
+        state.todayUses = state.todayUses.filter((use) => use.characterId !== editingId);
+        dialog.close();
+        saveState();
+        render();
+      });
+      form.addEventListener("input", saveEditorDraft);
+      form.addEventListener("change", saveEditorDraft);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveEditorDraft();
+        dialog.close();
+        render();
+      });
+
+      initializeAccess();
+    })();
+  </script>
+</body>
+</html>
