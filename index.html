@@ -207,7 +207,6 @@
 <body>
   <section class="auth-screen" id="authScreen">
     <div class="auth-panel">
-      <p class="eyebrow">Auto Battle / Private Data</p>
       <h1>進入狩獵時間</h1>
       <form class="auth-form" id="authForm" autocomplete="off" novalidate>
         <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Password" value="" required></label>
@@ -222,7 +221,6 @@
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Auto Battle / Roster Board</p>
         <h1>狩獵時間</h1>
       </div>
       <div class="top-actions">
@@ -519,7 +517,7 @@
         }
         window.clearTimeout(cloudSaveTimer);
         setSyncStatus("等待同步…", "");
-        cloudSaveTimer = window.setTimeout(flushCloudSave, 500);
+        cloudSaveTimer = window.setTimeout(flushCloudSave, 5000);
         return pendingCloudSave;
       }
 
@@ -817,7 +815,7 @@
           heading.className = "day-heading";
           const dayName = document.createElement("span");
           dayName.className = "day-name";
-          dayName.textContent = offset === 0 ? "今天" : weekdayFormatter.format(day);
+          dayName.textContent = offset === 0 ? `${weekdayFormatter.format(day)}-今天` : weekdayFormatter.format(day);
           const dayDate = document.createElement("span");
           dayDate.className = "day-date";
           dayDate.textContent = dateFormatter.format(day);
