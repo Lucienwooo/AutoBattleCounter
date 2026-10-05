@@ -583,22 +583,11 @@
       }
 
       async function initializeAccess() {
-        const isLocalPreview = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
         el("authPassword").value = "";
+        el("authScreen").hidden = false;
+        el("appRoot").hidden = true;
         setSyncStatus("本機儲存", "saved");
-
-        if (!supabaseClient && !githubSyncEnabled) {
-          if (isLocalPreview) {
-            el("authScreen").hidden = true;
-            el("appRoot").hidden = false;
-            startApp();
-          } else {
-            el("authScreen").hidden = false;
-            el("appRoot").hidden = true;
-            el("authMessage").textContent = "此網址僅供本人使用，請輸入密碼。";
-          }
-          return;
-        }
+        el("authMessage").textContent = "此網址僅供本人使用，請輸入密碼。";
 
         if (githubSyncEnabled) {
           try {
@@ -626,10 +615,6 @@
             // keep current local state when GitHub sync is unavailable
           }
         }
-
-        el("authScreen").hidden = true;
-        el("appRoot").hidden = false;
-        startApp();
       }
 
       function applyDailyRecharge() {
@@ -1154,10 +1139,14 @@
         updateTimeWindow();
         showToast("HotTime 日期已確認，只套用於所選日期一次。");
       });
-      el("logoutButton").addEventListener("click", async () => {
-        const { error } = await supabaseClient.auth.signOut();
-        if (error) showToast(error.message || "登出失敗。");
-      });
+      const logoutButton = el("logoutButton");
+      if (logoutButton) {
+        logoutButton.addEventListener("click", async () => {
+          if (!supabaseClient) return;
+          const { error } = await supabaseClient.auth.signOut();
+          if (error) showToast(error.message || "登出失敗。");
+        });
+      }
       el("cancelSchedule").addEventListener("click", () => el("scheduleDialog").close());
       authForm.addEventListener("submit", async (event) => {
         event.preventDefault();
