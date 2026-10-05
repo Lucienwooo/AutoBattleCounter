@@ -45,6 +45,14 @@
     .auth-form { display: grid; gap: 12px; }
     .auth-field { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
     .auth-field input { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 5px; outline: none; color: var(--ink); background: #17201b; }
+    .auth-field input:-webkit-autofill,
+    .auth-field input:-webkit-autofill:hover,
+    .auth-field input:-webkit-autofill:focus,
+    .auth-field input:-webkit-autofill:active {
+      -webkit-text-fill-color: var(--ink);
+      box-shadow: 0 0 0 1000px #17201b inset;
+      transition: background-color 5000s ease-in-out 0s;
+    }
     .auth-field input:focus { border-color: var(--lime); }
     .auth-message { min-height: 18px; margin: 2px 0 0; color: var(--orange); font-size: 11px; }
     .top-actions { display: flex; align-items: center; gap: 8px; }
@@ -200,9 +208,9 @@
     <div class="auth-panel">
       <p class="eyebrow">Auto Battle / Private Data</p>
       <h1>登入狩獵時間</h1>
-      <form class="auth-form" id="authForm">
-        <label class="auth-field">帳號<input id="authEmail" type="text" inputmode="text" autocomplete="username" placeholder="pupu" required></label>
-        <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="current-password" placeholder="9527" required></label>
+      <form class="auth-form" id="authForm" autocomplete="off" novalidate>
+        <label class="auth-field">帳號<input id="authEmail" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="pupu" value="" required></label>
+        <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="9527" value="" required></label>
         <button class="button button-primary" id="loginButton" type="submit">登入</button>
         <p class="auth-message" id="authMessage" role="status">固定帳號：pupu</p>
       </form>
@@ -534,14 +542,19 @@
       async function initializeAccess() {
         const isLocalPreview = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
         if (!supabaseClient) {
+          el("loginButton").disabled = true;
+          el("authEmail").value = "";
+          el("authPassword").value = "";
           if (isLocalPreview) {
             el("authScreen").hidden = true;
             el("appRoot").hidden = false;
             setSyncStatus("本機預覽", "");
             startApp();
           } else {
-            requireLogin("雲端登入尚未設定，請先完成 Supabase 設定。");
-            el("loginButton").disabled = true;
+            el("authScreen").hidden = false;
+            el("appRoot").hidden = true;
+            el("authMessage").textContent = "雲端登入尚未設定，請先完成 Supabase 設定。";
+            setSyncStatus("本機預覽", "");
           }
           return;
         }
