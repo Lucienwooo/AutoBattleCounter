@@ -1,5 +1,14 @@
 window.AUTO_BATTLE_SUPABASE = {
-  // 請替換成你在 Supabase 專案中取得的 Project URL 與 anon key
-  url: "https://YOUR_PROJECT_ID.supabase.co",
-  anonKey: "YOUR_ANON_KEY_HERE"
+  // 若你不需要 Supabase，可保留空白；目前密碼保護模式不依賴它。
+  url: "",
+  anonKey: ""
+};
+
+window.AUTO_BATTLE_GITHUB_SYNC = {
+  enabled: false,
+  owner: "",
+  repo: "",
+  branch: "main",
+  path: "data/auto-battle.json",
+  token: ""
 };
