@@ -201,10 +201,10 @@
       <p class="eyebrow">Auto Battle / Private Data</p>
       <h1>登入狩獵時間</h1>
       <form class="auth-form" id="authForm">
-        <label class="auth-field">電子郵件<input id="authEmail" type="email" autocomplete="username" required></label>
-        <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="current-password" required></label>
+        <label class="auth-field">帳號<input id="authEmail" type="text" inputmode="text" autocomplete="username" placeholder="pupu" required></label>
+        <label class="auth-field">密碼<input id="authPassword" type="password" autocomplete="current-password" placeholder="9527" required></label>
         <button class="button button-primary" id="loginButton" type="submit">登入</button>
-        <p class="auth-message" id="authMessage" role="status"></p>
+        <p class="auth-message" id="authMessage" role="status">固定帳號：pupu</p>
       </form>
     </div>
   </section>
@@ -1093,12 +1093,23 @@
       authForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (!supabaseClient) return;
+        const username = el("authEmail").value.trim();
+        const password = el("authPassword").value;
+        const email = resolveLoginEmail(username);
+        if (username.toLowerCase() !== "pupu") {
+          el("authMessage").textContent = "此帳號未開放，請使用固定帳號：pupu";
+          return;
+        }
+        if (password !== "9527") {
+          el("authMessage").textContent = "密碼錯誤。";
+          return;
+        }
         const button = el("loginButton");
         button.disabled = true;
         el("authMessage").textContent = "登入中…";
         const { error } = await supabaseClient.auth.signInWithPassword({
-          email: el("authEmail").value.trim(),
-          password: el("authPassword").value
+          email,
+          password
         });
         button.disabled = false;
         if (error) el("authMessage").textContent = error.message || "登入失敗。";
