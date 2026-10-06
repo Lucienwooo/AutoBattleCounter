@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#17201b">
+  <meta name="theme-color" content="#000000">
   <title>狩獵時間 | 角色計數器</title>
   <style>
     :root {
       color-scheme: dark;
-      --page: #151c18;
+      --page: #000000;
       --panel: #202923;
       --panel-raised: #27322b;
       --line: #39463c;
@@ -18,6 +18,10 @@
       --orange: #ff9e58;
       --red: #ff7468;
       --mint: #80d7b1;
+      --time-aurora: #6dffad;
+      --time-orange: #ff9d36;
+      --time-red: #ff3f5f;
+      --today-pink: #ff69b4;
       --display: "Aptos Display", "Microsoft JhengHei", sans-serif;
       --body: "Aptos", "Microsoft JhengHei", sans-serif;
     }
@@ -31,7 +35,7 @@
       color: var(--ink);
       font-family: var(--body);
       background-color: var(--page);
-      background-image: repeating-linear-gradient(135deg, transparent 0 38px, #ffffff04 39px 40px);
+      background-image: none;
     }
 
     button, input, textarea { font: inherit; }
@@ -87,11 +91,14 @@
     .hot-time-button[aria-pressed="true"] { border-color: var(--red); color: var(--red); background: #ff74681a; }
     .schedule-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
     .day-column { min-width: 0; min-height: 122px; padding: 10px 9px 8px; border: 1px solid var(--line); border-radius: 7px; background: #1b241e; }
-    .day-column.is-today { border-color: #73844b; background: #222c22; }
+    .day-column.is-today { border-color: var(--today-pink); background: #252027; box-shadow: 0 0 0 2px #ff69b433; }
     .day-column.is-hottime-today { border: 2px solid var(--red); box-shadow: 0 0 0 2px #ff746822; }
+    .day-column.is-today.is-hottime-today { border-color: var(--today-pink); box-shadow: 0 0 0 2px #ff69b433; }
     .day-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; margin-bottom: 9px; }
+      .day-label { display: flex; align-items: baseline; min-width: 0; gap: 6px; }
     .day-name { font-size: 11px; font-weight: 750; }
     .day-date { color: var(--muted); font-size: 9px; white-space: nowrap; }
+      .today-indicator { color: var(--today-pink); font-size: 10px; font-weight: 800; white-space: nowrap; }
     .hot-date-label { color: var(--red); font-size: 9px; font-weight: 750; white-space: nowrap; }
     .day-roles { display: grid; gap: 5px; }
     .schedule-role { display: flex; align-items: center; min-width: 0; gap: 6px; padding: 5px; border: 1px solid #ffffff12; border-radius: 5px; background: var(--panel); }
@@ -150,6 +157,9 @@
     .minutes { font: 700 24px/1 var(--display); }
     .minutes-edit-trigger { padding: 0; border: 0; color: var(--ink); background: transparent; cursor: text; text-align: left; }
     .minutes-edit-trigger:hover { color: var(--lime); }
+      .minutes[data-time-level="aurora"], .schedule-minutes[data-time-level="aurora"], .minutes-editor[data-time-level="aurora"] { color: var(--time-aurora); }
+      .minutes[data-time-level="orange"], .schedule-minutes[data-time-level="orange"], .minutes-editor[data-time-level="orange"] { color: var(--time-orange); }
+      .minutes[data-time-level="red"], .schedule-minutes[data-time-level="red"], .minutes-editor[data-time-level="red"] { color: var(--time-red); }
     .minutes-editor { width: 108px; min-height: 30px; padding: 1px 4px; border: 1px solid var(--lime); border-radius: 4px; outline: none; color: var(--ink); background: #17201b; font: 700 22px/1 var(--display); }
     .minutes small { color: var(--muted); font: 500 11px var(--body); }
     .capacity { color: var(--muted); font-size: 10px; }
@@ -403,6 +413,12 @@
         const number = Number(value);
         return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.floor(number))) : fallback;
       }
+
+            function getTimeLevel(minutes) {
+              if (minutes <= 240) return "aurora";
+              if (minutes <= 360) return "orange";
+              return "red";
+            }
 
       function hasSavedLocalState() {
         try {
@@ -741,6 +757,7 @@
           const time = document.createElement("button");
           time.className = "minutes minutes-edit-trigger";
           time.type = "button";
+          time.dataset.timeLevel = getTimeLevel(character.minutes);
           time.title = "雙擊或長按編輯時間";
           time.setAttribute("aria-label", `${character.name}目前${character.minutes}分鐘，雙擊或長按編輯`);
           time.innerHTML = `${character.minutes}<small> 分鐘</small>`;
@@ -798,7 +815,6 @@
         const week = el("scheduleWeek");
         week.replaceChildren();
         const weekdayFormatter = new Intl.DateTimeFormat("zh-TW", { weekday: "short" });
-        const dateFormatter = new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric" });
         const start = new Date();
         start.setHours(0, 0, 0, 0);
 
@@ -815,16 +831,25 @@
           heading.className = "day-heading";
           const dayName = document.createElement("span");
           dayName.className = "day-name";
-          dayName.textContent = offset === 0 ? `${weekdayFormatter.format(day)}-今天` : weekdayFormatter.format(day);
+          dayName.textContent = weekdayFormatter.format(day);
           const dayDate = document.createElement("span");
           dayDate.className = "day-date";
-          dayDate.textContent = dateFormatter.format(day);
-          heading.append(dayName, dayDate);
+          dayDate.textContent = `${String(day.getMonth() + 1).padStart(2, "0")}/${String(day.getDate()).padStart(2, "0")}`;
+          const dayLabel = document.createElement("div");
+          dayLabel.className = "day-label";
+          dayLabel.append(dayName, dayDate);
+          heading.append(dayLabel);
           if (isHotTime && !editingHotTime) {
             const hotLabel = document.createElement("span");
             hotLabel.className = "hot-date-label";
             hotLabel.textContent = "HotTime";
             heading.append(hotLabel);
+          }
+          if (offset === 0) {
+            const todayIndicator = document.createElement("span");
+            todayIndicator.className = "today-indicator";
+            todayIndicator.textContent = "今日";
+            heading.append(todayIndicator);
           }
           if (editingHotTime) {
             const hotToggle = document.createElement("label");
@@ -866,6 +891,7 @@
             characterName.textContent = character.name;
             const characterMinutes = document.createElement("span");
             characterMinutes.className = "schedule-minutes";
+            characterMinutes.dataset.timeLevel = getTimeLevel(character.minutes);
             characterMinutes.textContent = `剩餘 ${character.minutes} 分`;
             const info = document.createElement("div");
             info.className = "schedule-info";
@@ -923,6 +949,7 @@
           name.textContent = character.name;
           const minutes = document.createElement("span");
           minutes.className = "schedule-minutes";
+          minutes.dataset.timeLevel = getTimeLevel(character.minutes);
           minutes.textContent = `剩餘 ${character.minutes} 分`;
           const info = document.createElement("span");
           info.className = "schedule-info";
@@ -949,6 +976,7 @@
         input.max = "999";
         input.step = "1";
         input.inputMode = "numeric";
+        input.dataset.timeLevel = getTimeLevel(character.minutes);
         input.setAttribute("aria-label", `${character.name}剩餘分鐘`);
         input.value = String(character.minutes);
         let finished = false;
@@ -959,6 +987,7 @@
             state.todayUses = state.todayUses.filter((use) => use.characterId !== character.id);
           }
           character.minutes = nextMinutes;
+          input.dataset.timeLevel = getTimeLevel(nextMinutes);
           character.pauseDailyRecharge = nextMinutes > state.capacityMinutes;
           saveState();
           renderSchedule();
