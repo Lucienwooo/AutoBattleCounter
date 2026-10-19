@@ -85,6 +85,10 @@
     .usage-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 
     .schedule-section { margin: 0 0 22px; }
+    .memo-banner { display: grid; grid-template-columns: minmax(0, 9fr) minmax(48px, 1fr); gap: 8px; height: 222px; margin: 0 0 22px; }
+    .memo-input { width: 100%; min-width: 0; height: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 7px; outline: none; color: var(--ink); background: var(--panel); font: 13px/1.6 var(--body); resize: none; }
+    .memo-input:focus { border-color: var(--lime); box-shadow: 0 0 0 2px #d9ee7022; }
+    .memo-save { min-width: 0; height: 100%; padding: 0 4px; font-size: 12px; }
     .schedule-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin: 0 0 11px; }
     .schedule-heading h2 { margin: 0; font: 650 17px/1.3 var(--display); }
     .schedule-heading-actions { display: flex; align-items: center; gap: 8px; }
@@ -202,6 +206,7 @@
       .stat-value { font-size: 22px; }
       .stat-time .stat-value { font-size: 14px; }
       .schedule-section { margin-bottom: 20px; }
+      .memo-banner { height: 220px; margin-bottom: 20px; }
       .schedule-week { grid-template-columns: 1fr; gap: 6px; }
       .day-column { min-height: 0; padding: 9px 10px; }
       .day-heading { margin-bottom: 5px; }
@@ -249,6 +254,11 @@
     <section class="schedule-section" aria-labelledby="scheduleTitle">
       <div class="schedule-heading"><h2 id="scheduleTitle">7 日班表</h2><div class="schedule-heading-actions"><button class="button button-small" id="hotTimeConfirm" type="button" hidden>確認</button><button class="button button-small hot-time-button" id="hotTimeToggle" type="button" aria-pressed="false">HotTime</button></div></div>
       <div class="schedule-week" id="scheduleWeek"></div>
+    </section>
+
+    <section class="memo-banner" aria-label="留言備忘錄">
+      <textarea class="memo-input" id="memoInput" aria-label="留言備忘錄內容" placeholder="記下狩獵安排或待辦事項…"></textarea>
+      <button class="button button-primary memo-save" id="memoSaveButton" type="button">儲存</button>
     </section>
 
     <section aria-labelledby="rosterTitle">
@@ -308,6 +318,11 @@
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       };
+      const isFixedHotTimeDate = (dateKey) => {
+        const weekday = new Date(`${dateKey}T12:00:00`).getDay();
+        return weekday === 0 || weekday === 6;
+      };
+      const isHotTimeDate = (dateKey) => isFixedHotTimeDate(dateKey) || state.hotTimeDates.includes(dateKey);
       const dateKeysForNextSevenDays = () => {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
@@ -317,10 +332,6 @@
           return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         });
       };
-      const defaultHotTimeDates = () => dateKeysForNextSevenDays().filter((dateKey) => {
-        const date = new Date(`${dateKey}T12:00:00`);
-        return date.getDay() === 0 || date.getDay() === 6;
-      });
       const normalizeHotTimeDates = (saved) => {
         const today = todayKey();
         const now = new Date();
@@ -329,11 +340,11 @@
         const previousKey = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, "0")}-${String(previousDay.getDate()).padStart(2, "0")}`;
         const firstValidDay = now.getHours() * 60 + now.getMinutes() < 120 ? previousKey : today;
         if (Array.isArray(saved.hotTimeDates)) {
-          return [...new Set(saved.hotTimeDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= firstValidDay))];
+          return [...new Set(saved.hotTimeDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= firstValidDay && !isFixedHotTimeDate(date)))];
         }
         const legacyDays = Array.isArray(saved.hotTimeDays) ? saved.hotTimeDays : [0, 6];
-        const dates = dateKeysForNextSevenDays().filter((dateKey) => legacyDays.includes(new Date(`${dateKey}T12:00:00`).getDay()));
-        if (firstValidDay === previousKey && legacyDays.includes(previousDay.getDay())) dates.unshift(previousKey);
+        const dates = dateKeysForNextSevenDays().filter((dateKey) => !isFixedHotTimeDate(dateKey) && legacyDays.includes(new Date(`${dateKey}T12:00:00`).getDay()));
+        if (firstValidDay === previousKey && !isFixedHotTimeDate(previousKey) && legacyDays.includes(previousDay.getDay())) dates.unshift(previousKey);
         return dates;
       };
       const newCharacter = (index) => ({
@@ -350,7 +361,7 @@
       });
 
       function createInitialState() {
-        return { dailyMinutes: 120, capacityMinutes: 360, lastAccrualDate: todayKey(), characters: Array.from({ length: 6 }, (_, index) => ({ ...newCharacter(index), minutes: 120 })), todayUses: [], hotTimeDates: defaultHotTimeDates(), schedule: {} };
+        return { dailyMinutes: 120, capacityMinutes: 360, lastAccrualDate: todayKey(), characters: Array.from({ length: 6 }, (_, index) => ({ ...newCharacter(index), minutes: 120 })), todayUses: [], hotTimeDates: [], schedule: {}, memo: "" };
       }
 
       function normalizeSchedule(savedSchedule) {
@@ -402,7 +413,8 @@
               pauseDailyRecharge: Boolean(use.pauseDailyRecharge ?? (saved.characters.find((character) => character.id === use.characterId)?.pauseDailyRecharge || Number(saved.characters.find((character) => character.id === use.characterId)?.minutes) > 360))
             })),
             hotTimeDates: normalizeHotTimeDates(saved),
-            schedule: normalizeSchedule(saved.schedule)
+            schedule: normalizeSchedule(saved.schedule),
+            memo: typeof saved.memo === "string" ? saved.memo : ""
           };
         } catch {
           return createInitialState();
@@ -510,7 +522,7 @@
         }
       }
 
-      async function saveState() {
+      async function saveState(immediate = false) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch {
@@ -520,7 +532,7 @@
         }
 
         if (githubSyncEnabled) {
-          return scheduleCloudSave();
+          return immediate ? flushCloudSave() : scheduleCloudSave();
         }
 
         setSyncStatus("僅本機儲存", "");
@@ -688,6 +700,7 @@
 
       function render() {
         el("todayLabel").textContent = dateFormatter.format(new Date());
+        el("memoInput").value = state.memo;
         const usedNames = state.todayUses.map((use) => state.characters.find((character) => character.id === use.characterId)?.name).filter(Boolean);
         el("todayUsage").textContent = usedNames.join("、") || "尚未選擇";
         el("undoUse").hidden = !state.todayUses.length;
@@ -703,7 +716,12 @@
           return;
         }
 
-        state.characters.forEach((character, index) => {
+        const todaySchedule = state.schedule[String(new Date().getDay())] || [];
+        const scheduledOrder = new Map(todaySchedule.map((characterId, index) => [characterId, index]));
+        const orderedCharacters = [...state.characters].sort((left, right) =>
+          (scheduledOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (scheduledOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+        );
+        orderedCharacters.forEach((character, index) => {
           const consumedToday = character.lastConsumedDate === todayKey();
           const card = document.createElement("article");
           card.className = `character-card${consumedToday ? " is-selected" : ""}`;
@@ -824,7 +842,7 @@
           const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
           const scheduleKey = String(day.getDay());
           const assignments = state.schedule[scheduleKey] || [];
-          const isHotTime = state.hotTimeDates.includes(dayKey);
+          const isHotTime = isHotTimeDate(dayKey);
           const column = document.createElement("article");
           column.className = `day-column${offset === 0 ? " is-today" : ""}${offset === 0 && isHotTime ? " is-hottime-today" : ""}`;
           const heading = document.createElement("div");
@@ -856,7 +874,8 @@
             hotToggle.className = "hot-day-toggle";
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
-            checkbox.checked = draftHotTimeDates.includes(dayKey);
+            checkbox.checked = isFixedHotTimeDate(dayKey) || draftHotTimeDates.includes(dayKey);
+            checkbox.disabled = isFixedHotTimeDate(dayKey);
             checkbox.setAttribute("aria-label", `${dayName.textContent} HotTime`);
             checkbox.addEventListener("change", () => {
               draftHotTimeDates = checkbox.checked
@@ -1079,11 +1098,12 @@
           day.setDate(today.getDate() + offset);
           const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
           const weekday = day.getDay() >= 1 && day.getDay() <= 5;
-          const hotTime = state.hotTimeDates.includes(dayKey);
+              const hotTime = isHotTimeDate(dayKey);
           const windows = hotTime
             ? [
+                { start: 0, end: 120, label: "00:00–02:00" },
                 { start: 480, end: 840, label: "08:00–14:00" },
-                { start: 1140, end: 1560, label: "19:00–02:00" }
+                { start: 1140, end: 1440, label: "19:00–24:00" }
               ]
             : weekday
               ? [
@@ -1106,19 +1126,15 @@
         const now = new Date();
         const weekday = now.getDay() >= 1 && now.getDay() <= 5;
         const minuteOfDay = now.getHours() * 60 + now.getMinutes();
-        const previousDay = new Date(now);
-        previousDay.setDate(previousDay.getDate() - 1);
-        const previousKey = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, "0")}-${String(previousDay.getDate()).padStart(2, "0")}`;
         const today = todayKey();
         const datesBeforeExpiry = state.hotTimeDates.length;
-        state.hotTimeDates = state.hotTimeDates.filter((date) => date >= today || (date === previousKey && minuteOfDay < 120));
+        state.hotTimeDates = state.hotTimeDates.filter((date) => date >= today);
         if (state.hotTimeDates.length !== datesBeforeExpiry) saveState();
-        const hotTimeToday = state.hotTimeDates.includes(today);
-        const previousHotTime = state.hotTimeDates.includes(previousKey);
+        const hotTimeToday = isHotTimeDate(today);
         let windowEnd = null;
         let hotTimeWindow = false;
 
-        if (previousHotTime && minuteOfDay < 120) {
+        if (hotTimeToday && minuteOfDay < 120) {
           windowEnd = new Date(now);
           windowEnd.setHours(2, 0, 0, 0);
           hotTimeWindow = true;
@@ -1128,8 +1144,7 @@
           hotTimeWindow = true;
         } else if (hotTimeToday && minuteOfDay >= 1140) {
           windowEnd = new Date(now);
-          windowEnd.setDate(windowEnd.getDate() + 1);
-          windowEnd.setHours(2, 0, 0, 0);
+          windowEnd.setHours(24, 0, 0, 0);
           hotTimeWindow = true;
         } else if (weekday && !hotTimeToday && minuteOfDay >= 600 && minuteOfDay < 840) {
           windowEnd = new Date(now);
@@ -1147,7 +1162,7 @@
           const remaining = Math.ceil((windowEnd.getTime() - now.getTime()) / 60_000);
           countdown.textContent = `剩餘 ${remaining} 分鐘`;
           if (hotTimeWindow) {
-            hint.textContent = minuteOfDay < 120 || minuteOfDay >= 1140 ? "HotTime 19:00–02:00" : "HotTime 08:00–14:00";
+            hint.textContent = minuteOfDay < 120 ? "HotTime 00:00–02:00" : minuteOfDay >= 1140 ? "HotTime 19:00–24:00" : "HotTime 08:00–14:00";
           } else {
             hint.textContent = minuteOfDay < 840 ? "目前時段 10:00–14:00" : "目前時段 19:00–00:00";
           }
@@ -1198,8 +1213,7 @@
           draftHotTimeDates = [];
         } else {
           const today = todayKey();
-          const upcomingDates = state.hotTimeDates.filter((date) => date >= today);
-          draftHotTimeDates = upcomingDates.length ? [...upcomingDates] : defaultHotTimeDates();
+          draftHotTimeDates = state.hotTimeDates.filter((date) => date >= today && !isFixedHotTimeDate(date));
           editingHotTime = true;
         }
         el("hotTimeToggle").setAttribute("aria-pressed", String(editingHotTime));
@@ -1208,7 +1222,7 @@
       });
       el("hotTimeConfirm").addEventListener("click", () => {
         const visibleDates = new Set(dateKeysForNextSevenDays());
-        state.hotTimeDates = [...new Set(draftHotTimeDates.filter((date) => visibleDates.has(date) && date >= todayKey()))];
+        state.hotTimeDates = [...new Set(draftHotTimeDates.filter((date) => visibleDates.has(date) && date >= todayKey() && !isFixedHotTimeDate(date)))];
         editingHotTime = false;
         draftHotTimeDates = [];
         el("hotTimeToggle").setAttribute("aria-pressed", "false");
@@ -1216,7 +1230,12 @@
         saveState();
         renderSchedule();
         updateTimeWindow();
-        showToast("HotTime 日期已確認，只套用於所選日期一次。");
+        showToast("HotTime 日期已確認；週末固定時段不受此設定影響。");
+      });
+      el("memoSaveButton").addEventListener("click", async () => {
+        state.memo = el("memoInput").value;
+        const saved = await saveState(true);
+        if (saved) showToast("備忘錄已儲存。");
       });
       const logoutButton = el("logoutButton");
       if (logoutButton) {
