@@ -1115,7 +1115,12 @@
             const startsAt = new Date(day);
             startsAt.setMinutes(window.start);
             if (startsAt > now) {
-              return { duration: window.end - window.start, hotTime, label: window.label };
+              return {
+                duration: window.end - window.start,
+                minutesUntil: Math.ceil((startsAt.getTime() - now.getTime()) / 60_000),
+                hotTime,
+                label: window.label
+              };
             }
           }
         }
@@ -1168,9 +1173,9 @@
           }
         } else {
           const nextWindow = getNextBoostWindow(now);
-          countdown.textContent = nextWindow ? `下次加倍時間${nextWindow.duration}` : "暫無加倍時段";
+          countdown.textContent = nextWindow ? `距離加倍${nextWindow.minutesUntil}分鐘` : "暫無加倍時段";
           hint.textContent = nextWindow
-            ? `${nextWindow.hotTime ? "HotTime " : ""}下一時段 ${nextWindow.label}`
+            ? `${nextWindow.hotTime ? "HotTime " : ""}下一時段 ${nextWindow.label} = ${nextWindow.duration}分鐘`
             : "目前沒有已安排的加倍時段";
         }
         el("todayLabel").textContent = dateFormatter.format(now);
