@@ -86,7 +86,7 @@
     .usage-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 
     .schedule-section { margin: 0 0 22px; }
-    .memo-banner { display: grid; grid-template-columns: minmax(0, 9fr) minmax(48px, 1fr); gap: 8px; height: 222px; margin: 0 0 22px; }
+    .memo-banner { display: grid; grid-template-columns: minmax(0, 9fr) minmax(48px, 1fr); gap: 8px; height: 110px; margin: 0 0 22px; }
     .memo-input { width: 100%; min-width: 0; height: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 7px; outline: none; color: var(--ink); background: var(--panel); font: 13px/1.6 var(--body); resize: none; }
     .memo-input:focus { border-color: var(--lime); box-shadow: 0 0 0 2px #d9ee7022; }
     .memo-save { min-width: 0; height: 100%; padding: 0 4px; font-size: 12px; }
@@ -207,7 +207,7 @@
       .stat-value { font-size: 22px; }
       .stat-time .stat-value { font-size: 14px; }
       .schedule-section { margin-bottom: 20px; }
-      .memo-banner { height: 220px; margin-bottom: 20px; }
+      .memo-banner { height: 110px; margin-bottom: 20px; }
       .schedule-week { grid-template-columns: 1fr; gap: 6px; }
       .day-column { min-height: 0; padding: 9px 10px; }
       .day-heading { margin-bottom: 5px; }
@@ -1091,16 +1091,17 @@
         preview.append(image);
       }
 
-      function getNextBoostWindow(now) {
+      function getBoostWindowTimeline(now) {
         const today = new Date(now);
         today.setHours(0, 0, 0, 0);
-        for (let offset = 0; offset <= 7; offset += 1) {
+        const windows = [];
+        for (let offset = -1; offset <= 8; offset += 1) {
           const day = new Date(today);
           day.setDate(today.getDate() + offset);
           const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
           const weekday = day.getDay() >= 1 && day.getDay() <= 5;
-              const hotTime = isHotTimeDate(dayKey);
-          const windows = hotTime
+          const hotTime = isHotTimeDate(dayKey);
+          const dayWindows = hotTime
             ? [
                 { start: 0, end: 120, label: "00:00–02:00" },
                 { start: 480, end: 840, label: "08:00–14:00" },
@@ -1112,69 +1113,50 @@
                   { start: 1140, end: 1440, label: "19:00–00:00" }
                 ]
               : [];
-          for (const window of windows) {
+          for (const window of dayWindows) {
             const startsAt = new Date(day);
             startsAt.setMinutes(window.start);
-            if (startsAt > now) {
-              return {
-                duration: window.end - window.start,
-                minutesUntil: Math.ceil((startsAt.getTime() - now.getTime()) / 60_000),
-                hotTime,
-                label: window.label
-              };
+            const endsAt = new Date(day);
+            endsAt.setMinutes(window.end);
+            const previous = windows.at(-1);
+            if (previous && previous.end.getTime() === startsAt.getTime()) {
+              previous.end = endsAt;
+              previous.duration += window.end - window.start;
+              previous.hotTime ||= hotTime;
+              previous.segments += 1;
+            } else {
+              windows.push({ start: startsAt, end: endsAt, duration: window.end - window.start, hotTime, label: window.label, segments: 1 });
             }
           }
         }
-        return null;
+        windows.forEach((window) => {
+          if (window.segments > 1) {
+            const formatTime = (date) => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+            window.label = `${formatTime(window.start)}–${formatTime(window.end)}`;
+          }
+        });
+        return windows;
       }
 
       function updateTimeWindow() {
         const now = new Date();
-        const weekday = now.getDay() >= 1 && now.getDay() <= 5;
-        const minuteOfDay = now.getHours() * 60 + now.getMinutes();
         const today = todayKey();
         const datesBeforeExpiry = state.hotTimeDates.length;
         state.hotTimeDates = state.hotTimeDates.filter((date) => date >= today);
         if (state.hotTimeDates.length !== datesBeforeExpiry) saveState();
-        const hotTimeToday = isHotTimeDate(today);
-        let windowEnd = null;
-        let hotTimeWindow = false;
-
-        if (hotTimeToday && minuteOfDay < 120) {
-          windowEnd = new Date(now);
-          windowEnd.setHours(2, 0, 0, 0);
-          hotTimeWindow = true;
-        } else if (hotTimeToday && minuteOfDay >= 480 && minuteOfDay < 840) {
-          windowEnd = new Date(now);
-          windowEnd.setHours(14, 0, 0, 0);
-          hotTimeWindow = true;
-        } else if (hotTimeToday && minuteOfDay >= 1140) {
-          windowEnd = new Date(now);
-          windowEnd.setHours(24, 0, 0, 0);
-          hotTimeWindow = true;
-        } else if (weekday && !hotTimeToday && minuteOfDay >= 600 && minuteOfDay < 840) {
-          windowEnd = new Date(now);
-          windowEnd.setHours(14, 0, 0, 0);
-        } else if (weekday && !hotTimeToday && minuteOfDay >= 1140) {
-          windowEnd = new Date(now);
-          windowEnd.setHours(24, 0, 0, 0);
-        }
-
-        const active = Boolean(windowEnd);
+        const windows = getBoostWindowTimeline(now);
+        const activeWindow = windows.find((window) => window.start <= now && now < window.end);
+        const nextWindow = windows.find((window) => window.start > now);
         const countdown = el("windowCountdown");
         const hint = el("windowHint");
-        el("timeWindowStat").dataset.active = String(active);
-        if (active) {
-          const remaining = Math.ceil((windowEnd.getTime() - now.getTime()) / 60_000);
+        el("timeWindowStat").dataset.active = String(Boolean(activeWindow));
+        if (activeWindow) {
+          const remaining = Math.ceil((activeWindow.end.getTime() - now.getTime()) / 60_000);
           countdown.textContent = `剩餘 ${remaining} 分鐘`;
-          if (hotTimeWindow) {
-            hint.textContent = minuteOfDay < 120 ? "HotTime 00:00–02:00" : minuteOfDay >= 1140 ? "HotTime 19:00–24:00" : "HotTime 08:00–14:00";
-          } else {
-            hint.textContent = minuteOfDay < 840 ? "目前時段 10:00–14:00" : "目前時段 19:00–00:00";
-          }
+          hint.textContent = `${activeWindow.hotTime ? "HotTime" : "目前時段"} ${activeWindow.label}`;
         } else {
-          const nextWindow = getNextBoostWindow(now);
-          countdown.textContent = nextWindow ? `距離加倍${nextWindow.minutesUntil}分鐘` : "暫無加倍時段";
+          const minutesUntil = nextWindow ? Math.ceil((nextWindow.start.getTime() - now.getTime()) / 60_000) : null;
+          countdown.textContent = nextWindow ? `距離加倍${minutesUntil}分鐘` : "暫無加倍時段";
           hint.textContent = nextWindow
             ? `${nextWindow.hotTime ? "HotTime " : ""}下一時段 ${nextWindow.label} = ${nextWindow.duration}分鐘`
             : "目前沒有已安排的加倍時段";
