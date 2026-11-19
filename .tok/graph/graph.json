@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "extractor": "tok-graph/1/ts",
+  "repo_id": "AutoBattleCounter",
+  "nodes": [
+    {
+      "id": "supabase-config.js",
+      "kind": "file",
+      "name": "supabase-config.js",
+      "file": "supabase-config.js",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js",
+      "kind": "file",
+      "name": "index.js",
+      "file": "worker/index.js",
+      "span": {
+        "start": 1,
+        "end": 66
+      },
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::body",
+      "kind": "constant",
+      "name": "body",
+      "file": "worker/index.js",
+      "span": {
+        "start": 45,
+        "end": 45
+      },
+      "signature": "body = await request.json()",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::clientIp",
+      "kind": "constant",
+      "name": "clientIp",
+      "file": "worker/index.js",
+      "span": {
+        "start": 29,
+        "end": 29
+      },
+      "signature": "clientIp = request.headers.get(\"CF-Connecting-IP\") || \"unknown\"",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::content",
+      "kind": "constant",
+      "name": "content",
+      "file": "worker/index.js",
+      "span": {
+        "start": 40,
+        "end": 40
+      },
+      "signature": "content = await env.AUTO_BATTLE_DATA.get(\"state\")",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::content~2",
+      "kind": "constant",
+      "name": "content",
+      "file": "worker/index.js",
+      "span": {
+        "start": 50,
+        "end": 50
+      },
+      "signature": "content = JSON.stringify(state, null, 2)",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::corsHeaders",
+      "kind": "function",
+      "name": "corsHeaders",
+      "file": "worker/index.js",
+      "span": {
+        "start": 6,
+        "end": 15
+      },
+      "signature": "function corsHeaders(origin, env)",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::current",
+      "kind": "constant",
+      "name": "current",
+      "file": "worker/index.js",
+      "span": {
+        "start": 55,
+        "end": 55
+      },
+      "signature": "current = await env.AUTO_BATTLE_DATA.get(\"state\")",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::fetch",
+      "kind": "method",
+      "name": "fetch",
+      "file": "worker/index.js",
+      "span": {
+        "start": 18,
+        "end": 64
+      },
+      "signature": "async fetch(request, env)",
+      "exported": true,
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::headers",
+      "kind": "constant",
+      "name": "headers",
+      "file": "worker/index.js",
+      "span": {
+        "start": 20,
+        "end": 20
+      },
+      "signature": "headers = corsHeaders(origin, env)",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::jsonResponse",
+      "kind": "function",
+      "name": "jsonResponse",
+      "file": "worker/index.js",
+      "span": {
+        "start": 1,
+        "end": 4
+      },
+      "signature": "jsonResponse = (body, status, headers) => new Response(JSON.stringify(body),",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::origin",
+      "kind": "constant",
+      "name": "origin",
+      "file": "worker/index.js",
+      "span": {
+        "start": 19,
+        "end": 19
+      },
+      "signature": "origin = request.headers.get(\"Origin\")",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::state",
+      "kind": "constant",
+      "name": "state",
+      "file": "worker/index.js",
+      "span": {
+        "start": 46,
+        "end": 46
+      },
+      "signature": "state = body.state || body",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::url",
+      "kind": "constant",
+      "name": "url",
+      "file": "worker/index.js",
+      "span": {
+        "start": 24,
+        "end": 24
+      },
+      "signature": "url = new URL(request.url)",
+      "language": "javascript"
+    },
+    {
+      "id": "worker/index.js::{ success }",
+      "kind": "constant",
+      "name": "{ success }",
+      "file": "worker/index.js",
+      "span": {
+        "start": 30,
+        "end": 30
+      },
+      "language": "javascript"
+    }
+  ],
+  "edges": [
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::body",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::clientIp",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::content",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::content~2",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::corsHeaders",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::current",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::fetch",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::headers",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::jsonResponse",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::origin",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::state",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::url",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js",
+      "to": "worker/index.js::{ success }",
+      "kind": "contains"
+    },
+    {
+      "from": "worker/index.js::fetch",
+      "to": "worker/index.js::jsonResponse",
+      "kind": "calls"
+    },
+    {
+      "from": "worker/index.js::headers",
+      "to": "worker/index.js::corsHeaders",
+      "kind": "calls"
+    }
+  ],
+  "files": [
+    {
+      "path": "supabase-config.js",
+      "hash": "c3851f8e72b0096230623ebb679c62db59dd44faf01c8028eec68b88eb574b21",
+      "size": 279,
+      "language": "javascript",
+      "node_count": 1
+    },
+    {
+      "path": "worker/index.js",
+      "hash": "2c8d1857c20c9d1382aeb324f0366813c7c2697d96f799383c4f8828393b6d55",
+      "size": 2997,
+      "language": "javascript",
+      "node_count": 14
+    }
+  ],
+  "scopes": []
+}

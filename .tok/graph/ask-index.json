@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "extractor": "tok-graph/1/ts",
+  "docs": [
+    {
+      "id": "supabase-config.js",
+      "tf": {
+        "config": 5.0,
+        "js": 3.0,
+        "supabase": 5.0
+      },
+      "len": 13.0
+    },
+    {
+      "id": "worker/index.js",
+      "tf": {
+        "index": 5.0,
+        "js": 3.0,
+        "worker": 2.0
+      },
+      "len": 10.0
+    },
+    {
+      "id": "worker/index.js::body",
+      "tf": {
+        "await": 1.0,
+        "body": 4.0,
+        "index": 2.0,
+        "json": 1.0,
+        "request": 1.0,
+        "worker": 2.0
+      },
+      "len": 11.0
+    },
+    {
+      "id": "worker/index.js::clientIp",
+      "tf": {
+        "cf": 1.0,
+        "client": 4.0,
+        "clientip": 4.0,
+        "connecting": 1.0,
+        "get": 1.0,
+        "headers": 1.0,
+        "index": 2.0,
+        "ip": 4.0,
+        "request": 1.0,
+        "unknown": 1.0,
+        "worker": 2.0
+      },
+      "len": 22.0
+    },
+    {
+      "id": "worker/index.js::content",
+      "tf": {
+        "auto": 1.0,
+        "await": 1.0,
+        "battle": 1.0,
+        "content": 4.0,
+        "data": 1.0,
+        "env": 1.0,
+        "get": 1.0,
+        "index": 2.0,
+        "state": 1.0,
+        "worker": 2.0
+      },
+      "len": 15.0
+    },
+    {
+      "id": "worker/index.js::content~2",
+      "tf": {
+        "content": 4.0,
+        "index": 2.0,
+        "json": 1.0,
+        "null": 1.0,
+        "state": 1.0,
+        "stringify": 1.0,
+        "worker": 2.0
+      },
+      "len": 12.0
+    },
+    {
+      "id": "worker/index.js::corsHeaders",
+      "tf": {
+        "cors": 4.0,
+        "corsheaders": 4.0,
+        "env": 1.0,
+        "function": 1.0,
+        "headers": 4.0,
+        "index": 2.0,
+        "origin": 1.0,
+        "worker": 2.0
+      },
+      "len": 19.0
+    },
+    {
+      "id": "worker/index.js::current",
+      "tf": {
+        "auto": 1.0,
+        "await": 1.0,
+        "battle": 1.0,
+        "current": 4.0,
+        "data": 1.0,
+        "env": 1.0,
+        "get": 1.0,
+        "index": 2.0,
+        "state": 1.0,
+        "worker": 2.0
+      },
+      "len": 15.0
+    },
+    {
+      "id": "worker/index.js::fetch",
+      "tf": {
+        "async": 1.0,
+        "env": 1.0,
+        "fetch": 4.0,
+        "index": 2.0,
+        "request": 1.0,
+        "worker": 2.0
+      },
+      "len": 11.0
+    },
+    {
+      "id": "worker/index.js::headers",
+      "tf": {
+        "cors": 1.0,
+        "corsheaders": 1.0,
+        "env": 1.0,
+        "headers": 4.0,
+        "index": 2.0,
+        "origin": 1.0,
+        "worker": 2.0
+      },
+      "len": 12.0
+    },
+    {
+      "id": "worker/index.js::jsonResponse",
+      "tf": {
+        "body": 1.0,
+        "headers": 1.0,
+        "index": 2.0,
+        "json": 4.0,
+        "jsonresponse": 4.0,
+        "new": 1.0,
+        "response": 4.0,
+        "status": 1.0,
+        "stringify": 1.0,
+        "worker": 2.0
+      },
+      "len": 21.0
+    },
+    {
+      "id": "worker/index.js::origin",
+      "tf": {
+        "get": 1.0,
+        "headers": 1.0,
+        "index": 2.0,
+        "origin": 4.0,
+        "request": 1.0,
+        "worker": 2.0
+      },
+      "len": 11.0
+    },
+    {
+      "id": "worker/index.js::state",
+      "tf": {
+        "body": 1.0,
+        "index": 2.0,
+        "state": 4.0,
+        "worker": 2.0
+      },
+      "len": 9.0
+    },
+    {
+      "id": "worker/index.js::url",
+      "tf": {
+        "index": 2.0,
+        "new": 1.0,
+        "request": 1.0,
+        "url": 4.0,
+        "worker": 2.0
+      },
+      "len": 10.0
+    },
+    {
+      "id": "worker/index.js::{ success }",
+      "tf": {
+        "index": 2.0,
+        "success": 3.0,
+        "worker": 2.0
+      },
+      "len": 7.0
+    }
+  ],
+  "df": {
+    "async": 1,
+    "auto": 2,
+    "await": 3,
+    "battle": 2,
+    "body": 3,
+    "cf": 1,
+    "client": 1,
+    "clientip": 1,
+    "config": 1,
+    "connecting": 1,
+    "content": 2,
+    "cors": 2,
+    "corsheaders": 2,
+    "current": 1,
+    "data": 2,
+    "env": 5,
+    "fetch": 1,
+    "function": 1,
+    "get": 4,
+    "headers": 5,
+    "index": 14,
+    "ip": 1,
+    "js": 2,
+    "json": 3,
+    "jsonresponse": 1,
+    "new": 2,
+    "null": 1,
+    "origin": 3,
+    "request": 5,
+    "response": 1,
+    "state": 4,
+    "status": 1,
+    "stringify": 2,
+    "success": 1,
+    "supabase": 1,
+    "unknown": 1,
+    "url": 1,
+    "worker": 14
+  },
+  "avg_len": 13.2
+}
